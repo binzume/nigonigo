@@ -1,0 +1,6 @@
+logs/
+.vscode/*
+*.exe
+*.log
+configs/*.json
+!configs/account_sample.json
