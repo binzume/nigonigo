@@ -38,14 +38,12 @@ func NewPostReq(urlstr string, params map[string]string) (*http.Request, error) 
 }
 
 func NewGetReq(urlstr string, params map[string]string) (*http.Request, error) {
+	if len(params) == 0 {
+		return http.NewRequest("GET", urlstr, nil)
+	}
 	values := url.Values{}
 	for k, v := range params {
 		values.Set(k, v)
 	}
-
-	req, err := http.NewRequest("GET", urlstr+"?"+values.Encode(), nil)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
+	return http.NewRequest("GET", urlstr+"?"+values.Encode(), nil)
 }

@@ -1,6 +1,7 @@
 package nigonigo
 
 import (
+	"log"
 	"testing"
 )
 
@@ -31,12 +32,12 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func TestPlay(t *testing.T) {
+func TestSession(t *testing.T) {
 	client := NewClient()
 
-	url, err := client.GetContentUrl("sm9")
+	session, err := client.GetDMCSessionSimple("sm9")
 	if err != nil {
 		t.Errorf("Failed to request %v", err)
 	}
-	t.Log(url)
+	log.Println(session.ContentURI)
 }
