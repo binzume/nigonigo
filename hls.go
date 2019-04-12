@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -76,21 +75,8 @@ func (c *Client) GetSegment2(url string, w io.Writer, key, iv []byte) error {
 	return err
 }
 
-func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
-	time.Sleep(1 * time.Second)
-	master, err := c.GetContent(session.ContentURI)
-	if err != nil {
-		return err
-	}
-	log.Println(string(master))
-
-	// TODO: parse master.m3u8
-	playlistURL := strings.Replace(session.ContentURI, "/master.m3u8", "/1/ts/playlist.m3u8", 1)
-	if playlistURL == session.ContentURI {
-		return errors.New("invalid url " + playlistURL)
-	}
-
-	res, err := c.GetContent(playlistURL)
+func (c *Client) FetchSegments(url string, w io.Writer) error {
+	res, err := c.GetContent(url)
 	if err != nil {
 		return err
 	}
@@ -100,7 +86,13 @@ func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
 	encrypted := false
 	var iv []byte
 	var key []byte
-	for _, line := range strings.Split(playlist, "\n") {
+	lines := strings.Split(playlist, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "#EXT-X-STREAM-INF:") {
+			// TODO: select better stream.
+			time.Sleep(1 * time.Second)
+			return c.FetchSegments(relative(url, lines[i+1]), w)
+		}
 		match := re.FindStringSubmatch(line)
 		if match != nil {
 			encrypted = true
@@ -117,9 +109,9 @@ func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
 		}
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
 			if encrypted {
-				err = c.GetSegment2(relative(playlistURL, line), w, key, iv)
+				err = c.GetSegment2(relative(url, line), w, key, iv)
 			} else {
-				err = c.GetSegment(relative(playlistURL, line), w)
+				err = c.GetSegment(relative(url, line), w)
 			}
 			if err != nil {
 				return err
@@ -127,4 +119,8 @@ func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
+	return c.FetchSegments(session.ContentURI, w)
 }
