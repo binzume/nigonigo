@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-
-	"golang.org/x/text/encoding/japanese"
-	"golang.org/x/text/transform"
 )
 
 const (
@@ -14,6 +11,8 @@ const (
 	searchApiUrl = "http://api.search.nicovideo.jp/api/v2/video/contents/search"
 	topUrl       = "https://www.nicovideo.jp/"
 	watchUrl     = "https://www.nicovideo.jp/watch/"
+	httpOrigin   = "https://www.nicovideo.jp"
+	nvApiUrl     = "https://nvapi.nicovideo.jp/v1/"
 )
 
 type Client struct {
@@ -38,6 +37,46 @@ func NewClient() *Client {
 		panic(err)
 	}
 	return &Client{client, nil}
+}
+
+func (n *Client) LoginWithJsonFile(path string) error {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var c AccountConfig
+	err = json.Unmarshal(buf, &c)
+	if err != nil {
+		return err
+	}
+	return n.Login(&c)
+}
+
+func (c *Client) Login(ac *AccountConfig) error {
+	params := map[string]string{
+		"mail_tel": ac.Id,
+		"password": ac.Password,
+	}
+	_, err := c.post(loginApiUrl, params)
+	if err != nil {
+		return err
+	}
+	// TODO
+	return nil
+}
+
+func (c *Client) GetContent(url string) ([]byte, error) {
+	req, err := NewGetReq(url, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	return ioutil.ReadAll(res.Body)
 }
 
 func (c *Client) getWithParams(urlstr string, params map[string]string) (string, error) {
@@ -71,37 +110,10 @@ func (c *Client) request(req *http.Request) (string, error) {
 	}
 
 	defer res.Body.Close()
-	b, err := ioutil.ReadAll(transform.NewReader(res.Body, japanese.ShiftJIS.NewDecoder()))
+	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", err
 	}
 	body := string(b)
 	return body, err
-}
-
-func (n *Client) LoginWithJsonFile(path string) error {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var c AccountConfig
-	err = json.Unmarshal(buf, &c)
-	if err != nil {
-		return err
-	}
-	return n.Login(&c)
-}
-
-func (c *Client) Login(ac *AccountConfig) error {
-	params := map[string]string{
-		"mail_tel": ac.Id,
-		"password": ac.Password,
-	}
-	_, err := c.post(loginApiUrl, params)
-	if err != nil {
-		return err
-	}
-	// TODO
-	return nil
 }

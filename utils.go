@@ -19,6 +19,7 @@ type AgentSetter struct{}
 
 func (t *AgentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Origin", httpOrigin)
 	log.Println("REQUEST", req.Method, req.URL)
 	return http.DefaultTransport.RoundTrip(req)
 }

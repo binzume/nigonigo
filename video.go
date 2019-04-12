@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
+	"time"
 )
 
 type SourceStream struct {
@@ -34,8 +36,14 @@ type VideoData struct {
 			} `json:"quality"`
 			SessionAPI map[string]interface{} `json:"session_api"`
 			TrackingID string                 `json:"tracking_id"`
+			Encryption map[string]interface{} `json:"encryption"`
 		} `json:"dmcInfo"`
-		Smile map[string]interface{} `json:"smileInfo"`
+		Smile struct {
+			URL              string   `json:"url"`
+			CurrentQualityID string   `json:"currentQualityId"`
+			QualityIds       []string `json:"qualityIds"`
+			IsSlowLine       bool     `json:"isSlowLine"`
+		} `json:"smileInfo"`
 	} `json:"video"`
 	Thread  map[string]interface{} `json:"thread"`
 	Owner   map[string]interface{} `json:"owner"`
@@ -48,7 +56,7 @@ func (v *VideoData) IsDMC() bool {
 }
 
 func (v *VideoData) IsSmile() bool {
-	return v.Video.Smile["url"] != nil
+	return v.Video.Smile.URL != ""
 }
 
 func (v *VideoData) GetAvailableAudio() *SourceStream {
@@ -72,13 +80,13 @@ func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 }
 
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
-	res, err := c.get(watchUrl + contentId)
+	res, err := c.GetContent(watchUrl + contentId)
 	if err != nil {
 		return nil, err
 	}
 
 	re := regexp.MustCompile(`data-api-data="([^"]+)"`)
-	match := re.FindStringSubmatch(res)
+	match := re.FindStringSubmatch(string(res))
 	if match == nil {
 		return nil, errors.New("invalid response")
 	}
@@ -94,15 +102,25 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 type DMCSession struct {
 	ID         string `json:"id"`
 	ContentURI string `json:"content_uri"`
+	Protocol   struct {
+		Name       string                 `json:"name"`
+		Parameters map[string]interface{} `json:"parameters"`
+	} `json:"protocol"`
 	KeepMethod struct {
 		Heartbeat *struct {
 			LifetimeMs   int    `json:"lifetime"`
 			OnetimeToken string `json:"onetime_token"`
 		} `json:"heartbeat"`
 	} `json:"keep_method"`
+	url      string
+	fullData map[string]interface{}
 }
 
 func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSession, error) {
+	if !data.IsDMC() {
+		return nil, errors.New("DMC is not available for the video")
+	}
+
 	type JSONObject map[string]interface{}
 	type JSONArray []interface{}
 	var audioIds []string
@@ -134,11 +152,12 @@ func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSessio
 				"use_ssl":             "yes",
 				"segment_duration":    6000,
 				"transfer_preset":     "",
+				"encryption":          data.Video.DMC.Encryption,
 			},
 		}
 	}
 
-	var session = JSONObject{
+	var reqsession = JSONObject{
 		"session": JSONObject{
 			"recipe_id":         data.Video.DMC.SessionAPI["recipe_id"],
 			"content_id":        data.Video.DMC.SessionAPI["content_id"],
@@ -184,9 +203,10 @@ func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSessio
 			"client_info": JSONObject{
 				"player_id": data.Video.DMC.SessionAPI["player_id"],
 			},
+			"priority": data.Video.DMC.SessionAPI["priority"],
 		},
 	}
-	sessionStr, err := json.Marshal(session)
+	sessionStr, err := json.Marshal(reqsession)
 	if err != nil {
 		return nil, err
 	}
@@ -222,17 +242,57 @@ func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSessio
 		return nil, fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
 	}
 
-	return &sessionRes.Data.Session, nil
+	var untyped struct {
+		Data map[string]interface{} `json:"data"`
+	}
+	session := &sessionRes.Data.Session
+	session.url = sessionApiURL + "/" + sessionRes.Data.Session.ID
+	err = json.Unmarshal([]byte(res), &untyped)
+	if err == nil {
+		session.fullData = untyped.Data
+	}
+	return session, nil
 }
 
-func (c *Client) GetDMCSessionSimple(contentId string) (*DMCSession, error) {
+func (c *Client) Heartbeat(session *DMCSession) error {
+	sessionStr, err := json.Marshal(session.fullData)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", session.url+"?_format=json&_method=PUT", bytes.NewReader(sessionStr))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := c.request(req)
+	if err != nil {
+		return err
+	}
+
+	type sessionResponse struct {
+		Meta struct {
+			Status  int    `json:"status"`
+			Message string `json:"message"`
+		} `json:"meta"`
+		Data map[string]interface{} `json:"data"`
+	}
+	var sessionRes sessionResponse
+	err = json.Unmarshal([]byte(res), &sessionRes)
+	if err != nil {
+		return err
+	}
+	if sessionRes.Meta.Status < 200 || sessionRes.Meta.Status >= 300 {
+		return fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
+	}
+	session.fullData = sessionRes.Data
+	return nil
+}
+
+func (c *Client) GetDMCSessionById(contentId string) (*DMCSession, error) {
 	data, err := c.GetVideoData(contentId)
 	if err != nil {
 		return nil, err
-	}
-
-	if !data.IsDMC() {
-		return nil, errors.New("DMC is not available for the video")
 	}
 
 	audio := data.GetAvailableAudio()
@@ -243,7 +303,7 @@ func (c *Client) GetDMCSessionSimple(contentId string) (*DMCSession, error) {
 	return c.GetDMCSession(data, audio.ID, video.ID)
 }
 
-func (c *Client) StartDownload(session *DMCSession, w io.Writer) error {
+func (c *Client) StartDownloadHttp(session *DMCSession, w io.Writer) error {
 	req, err := NewGetReq(session.ContentURI, nil)
 	if err != nil {
 		return err
@@ -256,16 +316,35 @@ func (c *Client) StartDownload(session *DMCSession, w io.Writer) error {
 
 	defer res.Body.Close()
 
-	if session.KeepMethod.Heartbeat != nil {
-		log.Println("TODO: heartbeat...")
-	}
-
 	_, err = io.Copy(w, res.Body)
 	return err
 }
 
+func (c *Client) StartDownload(session *DMCSession, w io.Writer) error {
+	if session.Protocol.Name != "http" {
+		return fmt.Errorf("unsupported protocol : %v", session.Protocol.Name)
+	}
+
+	if session.KeepMethod.Heartbeat != nil {
+		log.Printf("TODO: heartbeat... %v ms", session.KeepMethod.Heartbeat.LifetimeMs)
+		go func() {
+			time.Sleep(time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond)
+			err := c.Heartbeat(session)
+			log.Printf("hearbeat %v", err)
+		}()
+	}
+
+	// supported format: http, hls
+	if strings.Contains(session.ContentURI, "/master.m3u8") {
+		// TODO: check session.Protocol.Paramters...
+		return c.StartHlsDownload(session, w)
+	} else {
+		return c.StartDownloadHttp(session, w)
+	}
+}
+
 func (c *Client) SimpleDownload(contentId string, w io.Writer) error {
-	session, err := c.GetDMCSessionSimple(contentId)
+	session, err := c.GetDMCSessionById(contentId)
 	if err != nil {
 		return err
 	}
