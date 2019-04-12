@@ -355,11 +355,23 @@ func (c *Client) StartDownload(session *DMCSession, w io.Writer) error {
 	}
 
 	if session.KeepMethod.Heartbeat != nil {
-		log.Printf("TODO: heartbeat... %v ms", session.KeepMethod.Heartbeat.LifetimeMs)
+		finish := make(chan interface{})
+		defer close(finish)
 		go func() {
-			time.Sleep(time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond)
-			err := c.Heartbeat(session)
-			log.Printf("hearbeat %v", err)
+			interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
+			for {
+				select {
+				case <-finish:
+					log.Printf("finished heartbeat")
+					return
+				case <-time.After(interval):
+					err := c.Heartbeat(session)
+					if err != nil {
+						log.Printf("hearbeat %v", err)
+						return
+					}
+				}
+			}
 		}()
 	}
 
