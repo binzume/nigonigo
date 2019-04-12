@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -289,8 +290,36 @@ func (c *Client) Heartbeat(session *DMCSession) error {
 	return nil
 }
 
+func (c *Client) PrepareLicense(data *VideoData) error {
+	if data.Video.DMC.Encryption["hls_encryption_v1"] != nil {
+		// Prepare encryption key.
+		// See: https://github.com/tor4kichi/Hohoema/issues/778
+		log.Println(data.Video.DMC.Encryption)
+		log.Println(data.Video.DMC.TrackingID)
+		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID)
+		req, err := NewGetReq(url, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("X-Frontend-Id", "6")
+		req.Header.Set("X-Frontend-Version", "0")
+
+		result, err := c.request(req)
+		if err != nil {
+			return err
+		}
+		log.Println(result)
+	}
+	return nil
+}
+
 func (c *Client) GetDMCSessionById(contentId string) (*DMCSession, error) {
 	data, err := c.GetVideoData(contentId)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.PrepareLicense(data)
 	if err != nil {
 		return nil, err
 	}
