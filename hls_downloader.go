@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -95,25 +96,51 @@ func (c *HLSDownloader) GetSegment2(ctx context.Context, url string, w io.Writer
 	return err
 }
 
-func (c *HLSDownloader) Download(ctx context.Context, url string, w io.Writer) error {
+type hlsPlaylist struct {
+	MediaSequence int
+	SubPlaylists  []string
+	Lines         []string
+	Endlist       bool
+}
+
+func parseHLSPlaylist(playlist []byte) *hlsPlaylist {
+	lines := strings.Split(string(playlist), "\n")
+	list := &hlsPlaylist{Lines: lines}
+	for i, line := range lines {
+		if strings.HasPrefix(line, "#") {
+			tag := strings.SplitN(line, ":", 2)
+			if tag[0] == "#EXT-X-STREAM-INF" {
+				list.SubPlaylists = append(list.SubPlaylists, lines[i+1])
+				lines[i+1] = "" // avoid download as .ts
+			} else if tag[0] == "#EXT-X-MEDIA-SEQUENCE" && len(tag) >= 2 {
+				list.MediaSequence, _ = strconv.Atoi(tag[1])
+			} else if tag[0] == "#EXT-X-ENDLIST" {
+				list.Endlist = true
+			}
+		}
+	}
+	return list
+}
+
+func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.Writer, start int) error {
 	res, err := c.getBytes(ctx, url)
 	if err != nil {
 		return err
 	}
-	playlist := string(res)
+	list := parseHLSPlaylist(res)
+	if len(list.SubPlaylists) > 0 {
+		// TODO: select better stream.
+		return c.downloadInternal(ctx, relative(url, list.SubPlaylists[0]), w, start)
+	}
 
 	reqInterval := 100 * time.Millisecond
 	re := regexp.MustCompile(`^#EXT-X-KEY:METHOD=AES-128,URI="([^"]+)",IV=0x([0-9a-fA-F]+)`)
-	lines := strings.Split(playlist, "\n")
-	for i, line := range lines {
+	mediaSeq := list.MediaSequence
+	for _, line := range list.Lines {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(reqInterval):
-		}
-		if strings.HasPrefix(line, "#EXT-X-STREAM-INF:") {
-			// TODO: select better stream.
-			return c.Download(ctx, relative(url, lines[i+1]), w)
 		}
 		match := re.FindStringSubmatch(line)
 		if match != nil {
@@ -131,6 +158,10 @@ func (c *HLSDownloader) Download(ctx context.Context, url string, w io.Writer) e
 			}
 		}
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
+			mediaSeq++
+			if mediaSeq <= start {
+				continue
+			}
 			if c.key != nil {
 				err = c.GetSegment2(ctx, relative(url, line), w, c.key, c.iv)
 			} else {
@@ -141,5 +172,13 @@ func (c *HLSDownloader) Download(ctx context.Context, url string, w io.Writer) e
 			}
 		}
 	}
-	return nil
+	if list.Endlist || mediaSeq <= start {
+		return nil
+	}
+	// TODO sleep
+	return c.downloadInternal(ctx, url, w, mediaSeq)
+}
+
+func (c *HLSDownloader) Download(ctx context.Context, url string, w io.Writer) error {
+	return c.downloadInternal(ctx, url, w, -1)
 }
