@@ -53,7 +53,7 @@ func TestSearchByChannel(t *testing.T) {
 func TestSession(t *testing.T) {
 	client := NewClient()
 
-	session, err := client.GetDMCSessionById(testVid)
+	session, err := client.CreateDMCSessionById(testVid)
 	if err != nil {
 		t.Fatalf("Failed to request %v", err)
 	}
@@ -66,11 +66,11 @@ func TestSession(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	client := NewClient()
-	session, err := client.GetDMCSessionById(testVid)
+	session, err := client.CreateDMCSessionById(testVid)
 	if err != nil {
 		t.Errorf("Failed to create session: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestDownloadLoggedIn(t *testing.T) {
 	}
 
 	contantID := result.Items[1].ContentID
-	session, err := client.GetDMCSessionById(contantID)
+	session, err := client.CreateDMCSessionById(contantID)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}

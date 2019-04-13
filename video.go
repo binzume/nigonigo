@@ -54,7 +54,7 @@ type VideoData struct {
 }
 
 func (v *VideoData) IsDMC() bool {
-	return v.GetAvailableAudio() != nil
+	return v.GetAvailableAudio() != nil || v.GetAvailableVideo() != nil
 }
 
 func (v *VideoData) IsSmile() bool {
@@ -101,6 +101,101 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 	return &data, nil
 }
 
+type jsonObject map[string]interface{}
+type jsonArray []interface{}
+
+func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error) {
+	if !data.IsDMC() {
+		return nil, errors.New("DMC is not available for the video")
+	}
+
+	var audioIds []string
+	var videoIds []string
+	if audio != "" {
+		audioIds = []string{audio}
+	}
+	if video != "" {
+		videoIds = []string{video}
+	}
+
+	var httpParams = jsonObject{
+		"http_output_download_parameters": jsonObject{
+			"use_well_known_port": "yes",
+			"use_ssl":             "yes",
+			"transfer_preset":     "",
+			// "file_extension": "flv",
+		},
+	}
+	httpAvailable := false
+	for _, proto := range data.Video.DMC.SessionAPI["protocols"].([]interface{}) {
+		if proto == "http" {
+			httpAvailable = true
+		}
+	}
+	if !httpAvailable {
+		httpParams = jsonObject{
+			"hls_parameters": jsonObject{
+				"use_well_known_port": "yes",
+				"use_ssl":             "yes",
+				"segment_duration":    6000,
+				"transfer_preset":     "",
+				"encryption":          data.Video.DMC.Encryption,
+			},
+		}
+	}
+
+	var reqsession = jsonObject{
+		"session": jsonObject{
+			"recipe_id":         data.Video.DMC.SessionAPI["recipe_id"],
+			"content_id":        data.Video.DMC.SessionAPI["content_id"],
+			"content_type":      "movie",
+			"timing_constraint": "unlimited",
+			"content_src_id_sets": jsonArray{
+				jsonObject{
+					"content_src_ids": jsonArray{
+						jsonObject{
+							"src_id_to_mux": jsonObject{
+								"video_src_ids": videoIds,
+								"audio_src_ids": audioIds,
+							},
+						},
+					},
+				},
+			},
+			"protocol": jsonObject{
+				"name": "http",
+				"parameters": jsonObject{
+					"http_parameters": jsonObject{
+						"parameters": httpParams,
+					},
+				},
+			},
+			"keep_method": jsonObject{
+				"heartbeat": jsonObject{
+					"lifetime": data.Video.DMC.SessionAPI["heartbeat_lifetime"],
+				},
+			},
+			"session_operation_auth": jsonObject{
+				"session_operation_auth_by_signature": jsonObject{
+					"token":     data.Video.DMC.SessionAPI["token"],
+					"signature": data.Video.DMC.SessionAPI["signature"],
+				},
+			},
+			"content_auth": jsonObject{
+				"auth_type":           "ht2",
+				"service_id":          "nicovideo",
+				"service_user_id":     data.Video.DMC.SessionAPI["service_user_id"],
+				"content_key_timeout": data.Video.DMC.SessionAPI["content_key_timeout"],
+			},
+			"client_info": jsonObject{
+				"player_id": data.Video.DMC.SessionAPI["player_id"],
+			},
+			"priority": data.Video.DMC.SessionAPI["priority"],
+		},
+	}
+	return reqsession, nil
+}
+
 type DMCSession struct {
 	ID         string `json:"id"`
 	ContentURI string `json:"content_uri"`
@@ -115,12 +210,27 @@ type DMCSession struct {
 		} `json:"heartbeat"`
 	} `json:"keep_method"`
 	url      string
-	fullData map[string]interface{}
+	fullData jsonObject
 }
 
+// IsHLS returns true if protocol is hls
 func (s *DMCSession) IsHLS() bool {
-	// TODO: check session.Protocol.Paramters...
-	return strings.Contains(s.ContentURI, "/master.m3u8")
+	httpParams := s.Protocol.Parameters["http_parameters"]
+	if httpParams == nil {
+		return false
+	}
+	hlsParams := httpParams.(map[string]interface{})["parameters"].(map[string]interface{})["hls_parameters"]
+	return hlsParams != nil
+}
+
+// IsHTTP returns true if protocol is http or https
+func (s *DMCSession) IsHTTP() bool {
+	return strings.HasPrefix(s.ContentURI, "http")
+}
+
+// IsRTMP returns true if protocol is rtmp
+func (s *DMCSession) IsRTMP() bool {
+	return strings.HasPrefix(s.ContentURI, "rtmp:")
 }
 
 func (s *DMCSession) FileExtension() string {
@@ -133,103 +243,17 @@ func (s *DMCSession) FileExtension() string {
 }
 
 func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSession, error) {
-	if !data.IsDMC() {
-		return nil, errors.New("DMC is not available for the video")
-	}
-
-	type JSONObject map[string]interface{}
-	type JSONArray []interface{}
-	var audioIds []string
-	var videoIds []string
-	if audio != "" {
-		audioIds = []string{audio}
-	}
-	if video != "" {
-		videoIds = []string{video}
-	}
-
-	var httpParams = JSONObject{
-		"http_output_download_parameters": JSONObject{
-			"use_well_known_port": "yes",
-			"use_ssl":             "yes",
-			"transfer_preset":     "",
-			// "file_extension": "flv",
-		},
-	}
-	httpAvailable := false
-	for _, proto := range data.Video.DMC.SessionAPI["protocols"].([]interface{}) {
-		if proto == "http" {
-			httpAvailable = true
-		}
-	}
-	if !httpAvailable {
-		httpParams = JSONObject{
-			"hls_parameters": JSONObject{
-				"use_well_known_port": "yes",
-				"use_ssl":             "yes",
-				"segment_duration":    6000,
-				"transfer_preset":     "",
-				"encryption":          data.Video.DMC.Encryption,
-			},
-		}
-	}
-
-	var reqsession = JSONObject{
-		"session": JSONObject{
-			"recipe_id":         data.Video.DMC.SessionAPI["recipe_id"],
-			"content_id":        data.Video.DMC.SessionAPI["content_id"],
-			"content_type":      "movie",
-			"timing_constraint": "unlimited",
-			"content_src_id_sets": JSONArray{
-				JSONObject{
-					"content_src_ids": JSONArray{
-						JSONObject{
-							"src_id_to_mux": JSONObject{
-								"video_src_ids": videoIds,
-								"audio_src_ids": audioIds,
-							},
-						},
-					},
-				},
-			},
-			"protocol": JSONObject{
-				"name": "http",
-				"parameters": JSONObject{
-					"http_parameters": JSONObject{
-						"parameters": httpParams,
-					},
-				},
-			},
-			"keep_method": JSONObject{
-				"heartbeat": JSONObject{
-					"lifetime": data.Video.DMC.SessionAPI["heartbeat_lifetime"],
-				},
-			},
-			"session_operation_auth": JSONObject{
-				"session_operation_auth_by_signature": JSONObject{
-					"token":     data.Video.DMC.SessionAPI["token"],
-					"signature": data.Video.DMC.SessionAPI["signature"],
-				},
-			},
-			"content_auth": JSONObject{
-				"auth_type":           "ht2",
-				"service_id":          "nicovideo",
-				"service_user_id":     data.Video.DMC.SessionAPI["service_user_id"],
-				"content_key_timeout": data.Video.DMC.SessionAPI["content_key_timeout"],
-			},
-			"client_info": JSONObject{
-				"player_id": data.Video.DMC.SessionAPI["player_id"],
-			},
-			"priority": data.Video.DMC.SessionAPI["priority"],
-		},
-	}
-	sessionStr, err := json.Marshal(reqsession)
+	reqsession, err := data.GenDMCSessionReq(audio, video)
 	if err != nil {
 		return nil, err
 	}
 	sessionApiURL := data.Video.DMC.SessionAPI["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
 
-	req, err := http.NewRequest("POST", sessionApiURL+"?_format=json", bytes.NewReader(sessionStr))
+	sessionBytes, err := json.Marshal(reqsession)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", sessionApiURL+"?_format=json", bytes.NewReader(sessionBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +279,7 @@ func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSessio
 		return nil, err
 	}
 	if sessionRes.Meta.Status < 200 || sessionRes.Meta.Status >= 300 {
-		log.Println(string(sessionStr))
+		log.Println(string(sessionBytes))
 		return nil, fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
 	}
 
@@ -329,7 +353,7 @@ func (c *Client) PrepareLicense(data *VideoData) error {
 	return nil
 }
 
-func (c *Client) GetDMCSessionById(contentId string) (*DMCSession, error) {
+func (c *Client) CreateDMCSessionById(contentId string) (*DMCSession, error) {
 	data, err := c.GetVideoData(contentId)
 	if err != nil {
 		return nil, err
@@ -348,8 +372,9 @@ func (c *Client) GetDMCSessionById(contentId string) (*DMCSession, error) {
 	return c.GetDMCSession(data, audio.ID, video.ID)
 }
 
-func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession) {
+func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession, errorLimit int) {
 	go func() {
+		errorCount := 0
 		interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
 		for {
 			select {
@@ -359,8 +384,11 @@ func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession) {
 			case <-time.After(interval):
 				err := c.Heartbeat(session)
 				if err != nil {
-					log.Printf("hearbeat %v", err)
-					return
+					log.Printf("hearbeat error :%v", err)
+					errorCount++
+					if errorCount > errorLimit {
+						return
+					}
 				}
 			}
 		}
@@ -375,12 +403,14 @@ func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer)
 	if session.KeepMethod.Heartbeat != nil {
 		hbCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		c.StartHeartbeat(hbCtx, session)
+		c.StartHeartbeat(hbCtx, session, 2)
 	}
 
 	if session.IsHLS() {
 		return NewHLSDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
-	} else {
+	} else if session.IsHTTP() {
 		return NewHTTPDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
+	} else {
+		return fmt.Errorf("unsupported protocol url: %v", session.ContentURI)
 	}
 }
