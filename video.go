@@ -1,7 +1,6 @@
 package nigonigo
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,23 +8,10 @@ import (
 	"html"
 	"io"
 	"log"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 )
-
-type SourceStream struct {
-	ID           string `json:"id"`
-	Available    bool   `json:"available"`
-	Bitrate      int    `json:"bitrate"`
-	SamplingRate int    `json:"sampling_rate"`
-	Resolution   struct {
-		Width  int `json:"width"`
-		Height int `json:"height"`
-	} `json:"resolution"`
-}
 
 type VideoData struct {
 	Video struct {
@@ -53,6 +39,17 @@ type VideoData struct {
 	Context map[string]interface{} `json:"context"`
 }
 
+type SourceStream struct {
+	ID           string `json:"id"`
+	Available    bool   `json:"available"`
+	Bitrate      int    `json:"bitrate"`
+	SamplingRate int    `json:"sampling_rate"`
+	Resolution   struct {
+		Width  int `json:"width"`
+		Height int `json:"height"`
+	} `json:"resolution"`
+}
+
 func (v *VideoData) IsDMC() bool {
 	return v.GetAvailableAudio() != nil || v.GetAvailableVideo() != nil
 }
@@ -67,6 +64,22 @@ func (v *VideoData) GetAvailableAudio() *SourceStream {
 
 func (v *VideoData) GetAvailableVideo() *SourceStream {
 	return v.GetAvailableSource(v.Video.DMC.Quality.Videos)
+}
+
+func (v *VideoData) SmileFileExtension() string {
+	if strings.HasPrefix(v.Video.Smile.URL, "rtmp") {
+		return "flv"
+	}
+	if strings.Contains(v.Video.Smile.URL, "?m=") {
+		return "mp4"
+	}
+	if strings.Contains(v.Video.Smile.URL, "?v=") {
+		return "flv"
+	}
+	if strings.Contains(v.Video.Smile.URL, "?s=") {
+		return "swf"
+	}
+	return "bin"
 }
 
 func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
@@ -196,140 +209,6 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 	return reqsession, nil
 }
 
-type DMCSession struct {
-	ID         string `json:"id"`
-	ContentURI string `json:"content_uri"`
-	Protocol   struct {
-		Name       string                 `json:"name"`
-		Parameters map[string]interface{} `json:"parameters"`
-	} `json:"protocol"`
-	KeepMethod struct {
-		Heartbeat *struct {
-			LifetimeMs   int    `json:"lifetime"`
-			OnetimeToken string `json:"onetime_token"`
-		} `json:"heartbeat"`
-	} `json:"keep_method"`
-	url      string
-	fullData jsonObject
-}
-
-// IsHLS returns true if protocol is hls
-func (s *DMCSession) IsHLS() bool {
-	httpParams := s.Protocol.Parameters["http_parameters"]
-	if httpParams == nil {
-		return false
-	}
-	hlsParams := httpParams.(map[string]interface{})["parameters"].(map[string]interface{})["hls_parameters"]
-	return hlsParams != nil
-}
-
-// IsHTTP returns true if protocol is http or https
-func (s *DMCSession) IsHTTP() bool {
-	return strings.HasPrefix(s.ContentURI, "http")
-}
-
-// IsRTMP returns true if protocol is rtmp
-func (s *DMCSession) IsRTMP() bool {
-	return strings.HasPrefix(s.ContentURI, "rtmp:")
-}
-
-func (s *DMCSession) FileExtension() string {
-	if s.IsHLS() {
-		// TODO: segment formant
-		return "ts"
-	}
-	// TODO: http_output_download_parameters.file_extension
-	return "mp4"
-}
-
-func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSession, error) {
-	reqsession, err := data.GenDMCSessionReq(audio, video)
-	if err != nil {
-		return nil, err
-	}
-	sessionApiURL := data.Video.DMC.SessionAPI["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
-
-	sessionBytes, err := json.Marshal(reqsession)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest("POST", sessionApiURL+"?_format=json", bytes.NewReader(sessionBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	res, err := c.request(req)
-	if err != nil {
-		return nil, err
-	}
-
-	type sessionResponse struct {
-		Meta struct {
-			Status  int    `json:"status"`
-			Message string `json:"message"`
-		} `json:"meta"`
-		Data struct {
-			Session DMCSession `json:"session"`
-		} `json:"data"`
-	}
-	var sessionRes sessionResponse
-	err = json.Unmarshal([]byte(res), &sessionRes)
-	if err != nil {
-		return nil, err
-	}
-	if sessionRes.Meta.Status < 200 || sessionRes.Meta.Status >= 300 {
-		log.Println(string(sessionBytes))
-		return nil, fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
-	}
-
-	var untyped struct {
-		Data map[string]interface{} `json:"data"`
-	}
-	session := &sessionRes.Data.Session
-	session.url = sessionApiURL + "/" + sessionRes.Data.Session.ID
-	err = json.Unmarshal([]byte(res), &untyped)
-	if err == nil {
-		session.fullData = untyped.Data
-	}
-	return session, nil
-}
-
-func (c *Client) Heartbeat(session *DMCSession) error {
-	sessionStr, err := json.Marshal(session.fullData)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("POST", session.url+"?_format=json&_method=PUT", bytes.NewReader(sessionStr))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	res, err := c.request(req)
-	if err != nil {
-		return err
-	}
-
-	type sessionResponse struct {
-		Meta struct {
-			Status  int    `json:"status"`
-			Message string `json:"message"`
-		} `json:"meta"`
-		Data map[string]interface{} `json:"data"`
-	}
-	var sessionRes sessionResponse
-	err = json.Unmarshal([]byte(res), &sessionRes)
-	if err != nil {
-		return err
-	}
-	if sessionRes.Meta.Status < 200 || sessionRes.Meta.Status >= 300 {
-		return fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
-	}
-	session.fullData = sessionRes.Data
-	return nil
-}
-
 func (c *Client) PrepareLicense(data *VideoData) error {
 	if data.Video.DMC.Encryption["hls_encryption_v1"] != nil {
 		// Prepare encryption key.
@@ -369,48 +248,22 @@ func (c *Client) CreateDMCSessionById(contentId string) (*DMCSession, error) {
 	if audio == nil || video == nil {
 		return nil, errors.New("source not found")
 	}
-	return c.GetDMCSession(data, audio.ID, video.ID)
+
+	reqsession, err := data.GenDMCSessionReq(audio.ID, video.ID)
+	if err != nil {
+		return nil, err
+	}
+	sessionApiURL := data.Video.DMC.SessionAPI["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
+	return c.CreateDMCSession(reqsession, sessionApiURL)
 }
 
-func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession, errorLimit int) {
-	go func() {
-		errorCount := 0
-		interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
-		for {
-			select {
-			case <-ctx.Done():
-				log.Printf("finished heartbeat")
-				return
-			case <-time.After(interval):
-				err := c.Heartbeat(session)
-				if err != nil {
-					log.Printf("hearbeat error :%v", err)
-					errorCount++
-					if errorCount > errorLimit {
-						return
-					}
-				}
-			}
-		}
-	}()
-}
-
-func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer) error {
-	if session.Protocol.Name != "http" {
-		return fmt.Errorf("unsupported protocol : %v", session.Protocol.Name)
+func (c *Client) DownloadFromSmile(ctx context.Context, data *VideoData, w io.Writer) error {
+	if !data.IsSmile() {
+		return errors.New("SMILE is not available")
 	}
 
-	if session.KeepMethod.Heartbeat != nil {
-		hbCtx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		c.StartHeartbeat(hbCtx, session, 2)
+	if !strings.HasPrefix(data.Video.Smile.URL, "http") {
+		return fmt.Errorf("unsported protocol : %v", data.Video.Smile.URL)
 	}
-
-	if session.IsHLS() {
-		return NewHLSDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
-	} else if session.IsHTTP() {
-		return NewHTTPDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
-	} else {
-		return fmt.Errorf("unsupported protocol url: %v", session.ContentURI)
-	}
+	return NewHTTPDownloader(c.HttpClient).Downaload(ctx, data.Video.Smile.URL, w)
 }

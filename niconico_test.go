@@ -115,3 +115,22 @@ func TestDownloadLoggedIn(t *testing.T) {
 		t.Fatalf("Failed to download: %v", err)
 	}
 }
+
+func TestDownloadFromSmile(t *testing.T) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	client := NewClient()
+	video, err := client.GetVideoData(testVid)
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	out, _ := os.Create(testVid + "." + video.SmileFileExtension())
+	defer out.Close()
+	err = client.DownloadFromSmile(ctx, video, out)
+	if err != nil {
+		t.Errorf("Failed to download: %v", err)
+	}
+}
