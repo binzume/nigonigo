@@ -2,5 +2,7 @@ logs/
 .vscode/*
 *.exe
 *.log
+*.test
+*.mp4
 configs/*.json
 !configs/account_sample.json

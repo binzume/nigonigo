@@ -12,24 +12,45 @@ Experimental implementation of niconico API client for Golang.
 
 T.B.D.
 
-```
+```go
 func main() {
-    contentID := "sm9"
 	client := nigonigo.NewClient()
+
+	contentID := "sm9"
+	video, err := client.GetVideoData(contentID)
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	out, _ := os.Create(testVid + "." + video.SmileFileExtension())
+	defer out.Close()
+	err = client.DownloadFromSmile(ctx, video, out)
+	if err != nil {
+		t.Errorf("Failed to download: %v", err)
+	}
+	log.Println("ok")
+}
+```
+
+```go
+func main() {
+	client := nigonigo.NewClient()
+
+	contentID := "sm9"
 	session, err := client.CreateDMCSessionById(contentID)
 	if err != nil {
-		t.Errorf("Failed to create session: %v", err)
+		log.Fatalf("Failed to create session: %v", err)
 	}
 
 	out, _ := os.Create(contentID + "." + session.FileExtension())
 	defer out.Close()
 	err = client.Download(context.Background(), session, out)
 	if err != nil {
-		t.Errorf("Failed to download: %v", err)
+		log.Fatalf("Failed to download: %v", err)
 	}
+	log.Println("ok")
 }
 ```
-
 
 ## License
 
