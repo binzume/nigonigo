@@ -1,6 +1,7 @@
 package nigonigo
 
 import (
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -47,4 +48,17 @@ func NewGetReq(urlstr string, params map[string]string) (*http.Request, error) {
 		values.Set(k, v)
 	}
 	return http.NewRequest("GET", urlstr+"?"+values.Encode(), nil)
+}
+
+func GetContent(client *http.Client, url string) ([]byte, error) {
+	req, err := NewGetReq(url, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	return ioutil.ReadAll(res.Body)
 }

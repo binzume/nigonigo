@@ -1,12 +1,14 @@
 package nigonigo
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -14,8 +16,25 @@ import (
 	"time"
 )
 
-func (c *Client) SaveKey(keyURL string) error {
-	key, err := c.GetContent(keyURL)
+type HLSDownloader struct {
+	HttpClient *http.Client
+	iv         []byte
+	key        []byte
+}
+
+func NewHLSDownloader(client *http.Client) *HLSDownloader {
+	if client == nil {
+		client = &http.Client{}
+	}
+	return &HLSDownloader{HttpClient: client}
+}
+
+func (c *HLSDownloader) getBytes(url string) ([]byte, error) {
+	return GetContent(c.HttpClient, url)
+}
+
+func (c *HLSDownloader) SaveKey(keyURL string) error {
+	key, err := c.getBytes(keyURL)
 	if err != nil {
 		return err
 	}
@@ -38,7 +57,7 @@ func relative(base, relative string) string {
 	return u1.ResolveReference(u2).String()
 }
 
-func (c *Client) GetSegment(url string, w io.Writer) error {
+func (c *HLSDownloader) GetSegment(url string, w io.Writer) error {
 	req, err := NewGetReq(url, nil)
 	if err != nil {
 		return err
@@ -52,9 +71,9 @@ func (c *Client) GetSegment(url string, w io.Writer) error {
 	return err
 }
 
-func (c *Client) GetSegment2(url string, w io.Writer, key, iv []byte) error {
+func (c *HLSDownloader) GetSegment2(url string, w io.Writer, key, iv []byte) error {
 	// TODO io.Reader/Writer
-	data, err := c.GetContent(url)
+	data, err := c.getBytes(url)
 	if err != nil {
 		return err
 	}
@@ -75,41 +94,44 @@ func (c *Client) GetSegment2(url string, w io.Writer, key, iv []byte) error {
 	return err
 }
 
-func (c *Client) FetchSegments(url string, w io.Writer) error {
-	res, err := c.GetContent(url)
+func (c *HLSDownloader) Downaload(ctx context.Context, url string, w io.Writer) error {
+	res, err := c.getBytes(url)
 	if err != nil {
 		return err
 	}
 	playlist := string(res)
 
 	re := regexp.MustCompile(`^#EXT-X-KEY:METHOD=AES-128,URI="([^"]+)",IV=0x([0-9a-fA-F]+)`)
-	encrypted := false
-	var iv []byte
-	var key []byte
 	lines := strings.Split(playlist, "\n")
 	for i, line := range lines {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		if strings.HasPrefix(line, "#EXT-X-STREAM-INF:") {
 			// TODO: select better stream.
 			time.Sleep(1 * time.Second)
-			return c.FetchSegments(relative(url, lines[i+1]), w)
+			return c.Downaload(ctx, relative(url, lines[i+1]), w)
 		}
 		match := re.FindStringSubmatch(line)
 		if match != nil {
-			encrypted = true
 			keyURL := match[1]
 			ivHex := match[2]
 			log.Println(keyURL)
 			log.Println(ivHex)
-			iv, _ = hex.DecodeString(ivHex)
-			key, err = c.GetContent(keyURL)
-			log.Println(len(key))
+			c.iv, _ = hex.DecodeString(ivHex)
+			c.key, err = c.getBytes(keyURL)
+			if len(c.key) != 16 {
+				return fmt.Errorf("invalid key length : %v", len(c.key))
+			}
 			if err != nil {
 				return err
 			}
 		}
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
-			if encrypted {
-				err = c.GetSegment2(relative(url, line), w, key, iv)
+			if c.key != nil {
+				err = c.GetSegment2(relative(url, line), w, c.key, c.iv)
 			} else {
 				err = c.GetSegment(relative(url, line), w)
 			}
@@ -119,8 +141,4 @@ func (c *Client) FetchSegments(url string, w io.Writer) error {
 		}
 	}
 	return nil
-}
-
-func (c *Client) StartHlsDownload(session *DMCSession, w io.Writer) error {
-	return c.FetchSegments(session.ContentURI, w)
 }

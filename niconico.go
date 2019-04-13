@@ -67,16 +67,7 @@ func (c *Client) Login(ac *AccountConfig) error {
 }
 
 func (c *Client) GetContent(url string) ([]byte, error) {
-	req, err := NewGetReq(url, nil)
-	if err != nil {
-		return nil, err
-	}
-	res, err := c.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	return ioutil.ReadAll(res.Body)
+	return GetContent(c.HttpClient, url)
 }
 
 func (c *Client) getWithParams(urlstr string, params map[string]string) (string, error) {

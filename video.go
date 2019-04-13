@@ -2,6 +2,7 @@ package nigonigo
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,6 +118,20 @@ type DMCSession struct {
 	fullData map[string]interface{}
 }
 
+func (s *DMCSession) IsHLS() bool {
+	// TODO: check session.Protocol.Paramters...
+	return strings.Contains(s.ContentURI, "/master.m3u8")
+}
+
+func (s *DMCSession) FileExtension() string {
+	if s.IsHLS() {
+		// TODO: segment formant
+		return "ts"
+	}
+	// TODO: http_output_download_parameters.file_extension
+	return "mp4"
+}
+
 func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSession, error) {
 	if !data.IsDMC() {
 		return nil, errors.New("DMC is not available for the video")
@@ -138,6 +153,7 @@ func (c *Client) GetDMCSession(data *VideoData, audio, video string) (*DMCSessio
 			"use_well_known_port": "yes",
 			"use_ssl":             "yes",
 			"transfer_preset":     "",
+			// "file_extension": "flv",
 		},
 	}
 	httpAvailable := false
@@ -332,62 +348,39 @@ func (c *Client) GetDMCSessionById(contentId string) (*DMCSession, error) {
 	return c.GetDMCSession(data, audio.ID, video.ID)
 }
 
-func (c *Client) StartDownloadHttp(session *DMCSession, w io.Writer) error {
-	req, err := NewGetReq(session.ContentURI, nil)
-	if err != nil {
-		return err
-	}
-
-	res, err := c.HttpClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-
-	_, err = io.Copy(w, res.Body)
-	return err
+func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession) {
+	go func() {
+		interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
+		for {
+			select {
+			case <-ctx.Done():
+				log.Printf("finished heartbeat")
+				return
+			case <-time.After(interval):
+				err := c.Heartbeat(session)
+				if err != nil {
+					log.Printf("hearbeat %v", err)
+					return
+				}
+			}
+		}
+	}()
 }
 
-func (c *Client) StartDownload(session *DMCSession, w io.Writer) error {
+func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer) error {
 	if session.Protocol.Name != "http" {
 		return fmt.Errorf("unsupported protocol : %v", session.Protocol.Name)
 	}
 
 	if session.KeepMethod.Heartbeat != nil {
-		finish := make(chan interface{})
-		defer close(finish)
-		go func() {
-			interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
-			for {
-				select {
-				case <-finish:
-					log.Printf("finished heartbeat")
-					return
-				case <-time.After(interval):
-					err := c.Heartbeat(session)
-					if err != nil {
-						log.Printf("hearbeat %v", err)
-						return
-					}
-				}
-			}
-		}()
+		hbCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		c.StartHeartbeat(hbCtx, session)
 	}
 
-	// supported format: http, hls
-	if strings.Contains(session.ContentURI, "/master.m3u8") {
-		// TODO: check session.Protocol.Paramters...
-		return c.StartHlsDownload(session, w)
+	if session.IsHLS() {
+		return NewHLSDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
 	} else {
-		return c.StartDownloadHttp(session, w)
+		return NewHTTPDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
 	}
-}
-
-func (c *Client) SimpleDownload(contentId string, w io.Writer) error {
-	session, err := c.GetDMCSessionById(contentId)
-	if err != nil {
-		return err
-	}
-	return c.StartDownload(session, w)
 }
