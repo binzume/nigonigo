@@ -103,7 +103,7 @@ func (c *Client) SetSessionString(sessionStr string) error {
 	parsed, _ := url.Parse(topUrl)
 	c.HttpClient.Jar.SetCookies(parsed, []*http.Cookie{cookie})
 
-	req, err := NewPostReq(topUrl, nil)
+	req, err := NewGetReq(topUrl, nil)
 	if err != nil {
 		return err
 	}
