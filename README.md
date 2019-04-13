@@ -22,7 +22,7 @@ func main() {
 		t.Fatalf("Failed to create session: %v", err)
 	}
 
-	out, _ := os.Create(testVid + "." + video.SmileFileExtension())
+	out, _ := os.Create(contentID + "." + video.SmileFileExtension())
 	defer out.Close()
 	err = client.DownloadFromSmile(ctx, video, out)
 	if err != nil {

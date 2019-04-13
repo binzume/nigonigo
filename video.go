@@ -265,5 +265,5 @@ func (c *Client) DownloadFromSmile(ctx context.Context, data *VideoData, w io.Wr
 	if !strings.HasPrefix(data.Video.Smile.URL, "http") {
 		return fmt.Errorf("unsported protocol : %v", data.Video.Smile.URL)
 	}
-	return NewHTTPDownloader(c.HttpClient).Downaload(ctx, data.Video.Smile.URL, w)
+	return NewHTTPDownloader(c.HttpClient).Download(ctx, data.Video.Smile.URL, w)
 }

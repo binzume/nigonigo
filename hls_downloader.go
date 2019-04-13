@@ -95,7 +95,7 @@ func (c *HLSDownloader) GetSegment2(ctx context.Context, url string, w io.Writer
 	return err
 }
 
-func (c *HLSDownloader) Downaload(ctx context.Context, url string, w io.Writer) error {
+func (c *HLSDownloader) Download(ctx context.Context, url string, w io.Writer) error {
 	res, err := c.getBytes(ctx, url)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func (c *HLSDownloader) Downaload(ctx context.Context, url string, w io.Writer) 
 		}
 		if strings.HasPrefix(line, "#EXT-X-STREAM-INF:") {
 			// TODO: select better stream.
-			return c.Downaload(ctx, relative(url, lines[i+1]), w)
+			return c.Download(ctx, relative(url, lines[i+1]), w)
 		}
 		match := re.FindStringSubmatch(line)
 		if match != nil {

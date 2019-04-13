@@ -175,9 +175,9 @@ func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer)
 	}
 
 	if session.IsHLS() {
-		return NewHLSDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
+		return NewHLSDownloader(c.HttpClient).Download(ctx, session.ContentURI, w)
 	} else if session.IsHTTP() {
-		return NewHTTPDownloader(c.HttpClient).Downaload(ctx, session.ContentURI, w)
+		return NewHTTPDownloader(c.HttpClient).Download(ctx, session.ContentURI, w)
 	} else {
 		return fmt.Errorf("unsupported protocol url: %v", session.ContentURI)
 	}
