@@ -13,11 +13,23 @@ import (
 	"strings"
 )
 
+var (
+	errorMessageNotFound = "この動画は存在しないか、削除された可能性があります。"
+	errorMessageExpired  = "お探しの動画は視聴可能期間が終了しています"
+	errorMessageChannel  = "チャンネル会員専用動画です"
+)
+
 type VideoData struct {
 	Video struct {
-		ID       string `json:"id"`
-		Duration int    `json:"duration"`
-		DMC      struct {
+		ContentID      string `json:"id"`
+		Title          string `json:"title"`
+		Description    string `json:"description"`
+		Duration       int    `json:"duration"`
+		PostedDateTime string `json:"postedDateTime"`
+		ThumbnailURL   string `json:"thumbnailURL"`
+		ViewCount      int    `json:"viewCount"`
+		MylistCount    int    `json:"mylistCount"`
+		DMC            struct {
 			Quality struct {
 				Audios []*SourceStream `json:"audios"`
 				Videos []*SourceStream `json:"videos"`
@@ -56,6 +68,10 @@ func (v *VideoData) IsDMC() bool {
 
 func (v *VideoData) IsSmile() bool {
 	return v.Video.Smile.URL != ""
+}
+
+func (v *VideoData) IsNeedPayment() bool {
+	return v.Context["isNeedPayment"] == true
 }
 
 func (v *VideoData) GetAvailableAudio() *SourceStream {
@@ -100,10 +116,20 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 		return nil, err
 	}
 
+	body := string(res)
 	re := regexp.MustCompile(`data-api-data="([^"]+)"`)
-	match := re.FindStringSubmatch(string(res))
+	match := re.FindStringSubmatch(body)
 	if match == nil {
-		return nil, errors.New("invalid response")
+		if strings.Contains(body, errorMessageNotFound) {
+			return nil, errors.New("video not found")
+		}
+		if strings.Contains(body, errorMessageExpired) {
+			return nil, errors.New("expired")
+		}
+		if strings.Contains(body, errorMessageChannel) {
+			return nil, errors.New("member only")
+		}
+		return nil, errors.New("invalid response(data-api-data)")
 	}
 	jsonString := html.UnescapeString(match[1])
 	var data VideoData
@@ -131,12 +157,18 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 		videoIds = []string{video}
 	}
 
+	transferPreset := ""
+	transferPresets := data.Video.DMC.SessionAPI["transfer_presets"].([]interface{})
+	if len(transferPresets) > 0 {
+		transferPreset = transferPresets[0].(string)
+	}
+
 	var httpParams = jsonObject{
 		"http_output_download_parameters": jsonObject{
 			"use_well_known_port": "yes",
 			"use_ssl":             "yes",
-			"transfer_preset":     "",
-			// "file_extension": "flv",
+			"transfer_preset":     transferPreset,
+			//"file_extension":      "flv",
 		},
 	}
 	httpAvailable := false
@@ -151,7 +183,7 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 				"use_well_known_port": "yes",
 				"use_ssl":             "yes",
 				"segment_duration":    6000,
-				"transfer_preset":     "",
+				"transfer_preset":     transferPreset,
 				"encryption":          data.Video.DMC.Encryption,
 			},
 		}
@@ -246,6 +278,9 @@ func (c *Client) CreateDMCSessionById(contentId string) (*DMCSession, error) {
 	audio := data.GetAvailableAudio()
 	video := data.GetAvailableVideo()
 	if audio == nil || video == nil {
+		if data.IsNeedPayment() {
+			return nil, errors.New("need payment")
+		}
 		return nil, errors.New("source not found")
 	}
 
