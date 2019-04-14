@@ -7,18 +7,18 @@ import (
 )
 
 type SearchResultItem struct {
-	ContentID      string `json:"contentID"`
-	Title          string `json:"title"`
-	Description    int    `json:"description"`
-	LengthSeconds  int    `json:"lengthSeconds"`
-	UserID         int    `json:"userId"`
-	ChannelID      int    `json:"channelId"`
-	Tags           string `json:"tags"`
-	StartTime      string `json:"startTime"`
-	ThumbnailURL   string `json:"thumbnailUrl"`
-	ViewCounter    int    `json:"viewCounter"`
-	MylistCounter  int    `json:"mylistCounter"`
-	CommentCounter int    `json:"commentCounter"`
+	ContentID    string `json:"contentID"`
+	Title        string `json:"title"`
+	Description  int    `json:"description"`
+	Duration     int    `json:"lengthSeconds"`
+	UserID       int    `json:"userId"`
+	ChannelID    int    `json:"channelId"`
+	Tags         string `json:"tags"`
+	StartTime    string `json:"startTime"`
+	ThumbnailURL string `json:"thumbnailUrl"`
+	ViewCount    int    `json:"viewCounter"`
+	MylistCount  int    `json:"mylistCounter"`
+	CommentCount int    `json:"commentCounter"`
 }
 
 // TODO

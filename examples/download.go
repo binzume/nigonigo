@@ -2,22 +2,14 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 
 	"github.com/binzume/nigonigo"
 )
 
-func main() {
-	client := nigonigo.NewClient()
-
-	contentID := "sm9"
-	if len(os.Args) > 1 {
-		contentID = os.Args[1]
-	}
-	if len(os.Args) > 2 {
-		client.LoginWithJsonFile(os.Args[2])
-	}
+func download(client *nigonigo.Client, contentID string) {
 	session, err := client.CreateDMCSessionById(contentID)
 	if err != nil {
 		log.Fatalf("Failed to create session: %v", err)
@@ -28,6 +20,46 @@ func main() {
 	err = client.Download(context.Background(), session, out)
 	if err != nil {
 		log.Fatalf("Failed to download: %v", err)
+	}
+}
+
+func main() {
+	id := flag.String("i", "", "mail address")
+	password := flag.String("p", "", "password")
+	accountFile := flag.String("a", "", "account.json")
+	sessionFile := flag.String("s", "", "session.json")
+	flag.Parse()
+	if flag.NArg() == 0 {
+		flag.Usage()
+		return
+	}
+
+	client := nigonigo.NewClient()
+	var loginerr error
+	if *sessionFile != "" {
+		err := client.LoadLoginSession(*sessionFile)
+		if err != nil {
+			loginerr = err
+		}
+	}
+	if client.Session == nil && *accountFile != "" {
+		err := client.LoginWithJsonFile(*accountFile)
+		if err != nil {
+			loginerr = err
+		}
+	}
+	if client.Session == nil && *id != "" {
+		err := client.LoginWithPassword(*id, *password)
+		if err != nil {
+			loginerr = err
+		}
+	}
+	if loginerr != nil && client.Session == nil {
+		log.Fatalf("login failed: %v", loginerr)
+	}
+
+	for _, contentID := range flag.Args() {
+		download(client, contentID)
 	}
 	log.Println("ok")
 }

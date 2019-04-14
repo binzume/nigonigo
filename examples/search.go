@@ -1,21 +1,34 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/binzume/nigonigo"
 )
 
 func main() {
+	tag := flag.Bool("t", false, "tag search")
+	offset := flag.Int("offset", 0, "offset")
+	limit := flag.Int("limit", 100, "limit")
+	flag.Parse()
+	if flag.NArg() == 0 {
+		log.Println("usage: go run search.go hoge")
+		flag.Usage()
+		return
+	}
+	q := flag.Arg(0)
+
 	client := nigonigo.NewClient()
 
-	if len(os.Args) < 1 {
-		log.Fatalf("usage: go run search.go hoge")
+	var result *nigonigo.SearchResult
+	var err error
+	if *tag {
+		result, err = client.SearchByTag(q, *offset, *limit)
+	} else {
+		result, err = client.SearchByKeyword(q, *offset, *limit)
 	}
-
-	result, err := client.SearchByKeyword(os.Args[1], 0, 100)
 	if err != nil {
 		log.Fatalf("Failed to request %v", err)
 	}
