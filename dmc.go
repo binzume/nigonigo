@@ -54,7 +54,15 @@ func (s *DMCSession) FileExtension() string {
 		// TODO: segment formant
 		return "ts"
 	}
-	// TODO: http_output_download_parameters.file_extension
+	// http_parameters.http_output_download_parameters.file_extension
+	if httpParams := s.Protocol.Parameters["http_parameters"]; httpParams != nil {
+		httpParams = httpParams.(map[string]interface{})["parameters"]
+		if dlParams := httpParams.(map[string]interface{})["http_output_download_parameters"]; dlParams != nil {
+			if ext := dlParams.(map[string]interface{})["file_extension"]; ext != nil && ext != "" {
+				return ext.(string)
+			}
+		}
+	}
 	return "mp4"
 }
 
