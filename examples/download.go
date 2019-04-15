@@ -3,11 +3,27 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/binzume/nigonigo"
 )
+
+type ByteCounter struct {
+	Count int64
+}
+
+func (w *ByteCounter) Write(p []byte) (int, error) {
+	if w.Count != 0 {
+		fmt.Fprint(os.Stderr, strings.Repeat("\b", 80))
+	}
+	w.Count += int64(len(p))
+	fmt.Fprintf(os.Stderr, "Download %v MiB. ", w.Count/1024/1024)
+	return len(p), nil
+}
 
 func download(client *nigonigo.Client, contentID string) {
 	session, err := client.CreateDMCSessionById(contentID)
@@ -15,12 +31,14 @@ func download(client *nigonigo.Client, contentID string) {
 		log.Fatalf("Failed to create session: %v", err)
 	}
 
+	log.Printf("Start download %v", contentID)
 	out, _ := os.Create(contentID + "." + session.FileExtension())
 	defer out.Close()
-	err = client.Download(context.Background(), session, out)
+	err = client.Download(context.Background(), session, io.MultiWriter(&ByteCounter{}, out))
 	if err != nil {
 		log.Fatalf("Failed to download: %v", err)
 	}
+	log.Println("ok")
 }
 
 func main() {
@@ -61,5 +79,4 @@ func main() {
 	for _, contentID := range flag.Args() {
 		download(client, contentID)
 	}
-	log.Println("ok")
 }

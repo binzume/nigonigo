@@ -1,7 +1,6 @@
 package nigonigo
 
 import (
-	"io/ioutil"
 	"net/http"
 )
 
@@ -25,47 +24,4 @@ func NewClient() *Client {
 		panic(err)
 	}
 	return &Client{client, nil}
-}
-
-func (c *Client) GetContent(url string) ([]byte, error) {
-	return GetContent(c.HttpClient, url)
-}
-
-func (c *Client) getWithParams(urlstr string, params map[string]string) (string, error) {
-	req, err := NewGetReq(urlstr, params)
-	if err != nil {
-		return "", err
-	}
-	return c.request(req)
-}
-
-func (a *Client) get(apiurl string) (string, error) {
-	req, err := http.NewRequest("GET", apiurl, nil)
-	if err != nil {
-		return "", err
-	}
-	return a.request(req)
-}
-
-func (c *Client) post(urlstr string, params map[string]string) (string, error) {
-	req, err := NewPostReq(urlstr, params)
-	if err != nil {
-		return "", err
-	}
-	return c.request(req)
-}
-
-func (c *Client) request(req *http.Request) (string, error) {
-	res, err := c.HttpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer res.Body.Close()
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	body := string(b)
-	return body, err
 }

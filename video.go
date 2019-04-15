@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -111,7 +110,7 @@ func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 }
 
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
-	res, err := c.GetContent(watchUrl + contentId)
+	res, err := GetContent(c.HttpClient, watchUrl+contentId, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -245,8 +244,8 @@ func (c *Client) PrepareLicense(data *VideoData) error {
 	if data.Video.DMC.Encryption["hls_encryption_v1"] != nil {
 		// Prepare encryption key.
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
-		log.Println(data.Video.DMC.Encryption)
-		log.Println(data.Video.DMC.TrackingID)
+		Logger.Println(data.Video.DMC.Encryption)
+		Logger.Println(data.Video.DMC.TrackingID)
 		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID)
 		req, err := NewGetReq(url, nil)
 		if err != nil {
@@ -255,11 +254,10 @@ func (c *Client) PrepareLicense(data *VideoData) error {
 		req.Header.Set("X-Frontend-Id", "6")
 		req.Header.Set("X-Frontend-Version", "0")
 
-		result, err := c.request(req)
+		_, err = DoRequest(c.HttpClient, req)
 		if err != nil {
 			return err
 		}
-		log.Println(result)
 	}
 	return nil
 }

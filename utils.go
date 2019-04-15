@@ -1,15 +1,19 @@
 package nigonigo
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 )
 
-const UserAgent = "Mozilla/5.0 Nigonigo/1.0"
+var Logger *log.Logger = log.New(os.Stderr, "", log.LstdFlags)
+var RequestLogger *log.Logger = nil
+var UserAgent = "Mozilla/5.0 Nigonigo/1.0"
 
 func NewHttpClient() (*http.Client, error) {
 	jar, err := cookiejar.New(nil)
@@ -21,7 +25,9 @@ type AgentSetter struct{}
 func (t *AgentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Origin", httpOrigin)
-	log.Println("REQUEST", req.Method, req.URL)
+	if RequestLogger != nil {
+		RequestLogger.Println("REQUEST", req.Method, req.URL)
+	}
 	return http.DefaultTransport.RoundTrip(req)
 }
 
@@ -50,8 +56,8 @@ func NewGetReq(urlstr string, params map[string]string) (*http.Request, error) {
 	return http.NewRequest("GET", urlstr+"?"+values.Encode(), nil)
 }
 
-func GetContent(client *http.Client, url string) ([]byte, error) {
-	req, err := NewGetReq(url, nil)
+func GetContent(client *http.Client, url string, params map[string]string) ([]byte, error) {
+	req, err := NewGetReq(url, params)
 	if err != nil {
 		return nil, err
 	}
@@ -60,5 +66,22 @@ func GetContent(client *http.Client, url string) ([]byte, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("incalid status code :%v", res.StatusCode)
+	}
 	return ioutil.ReadAll(res.Body)
+}
+
+func DoRequest(client *http.Client, req *http.Request) ([]byte, error) {
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return b, err
 }

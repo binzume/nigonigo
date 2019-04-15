@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -41,19 +40,20 @@ func (c *HLSDownloader) getBytes(ctx context.Context, url string) ([]byte, error
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		err = fmt.Errorf("incalid status code :%v", res.StatusCode)
+	}
 	return ioutil.ReadAll(res.Body)
 }
-
-// Simple hls client...
 
 func relative(base, relative string) string {
 	u1, err := url.Parse(base)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 	u2, err := url.Parse(relative)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 	return u1.ResolveReference(u2).String()
 }
@@ -146,8 +146,8 @@ func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.W
 		if match != nil {
 			keyURL := match[1]
 			ivHex := match[2]
-			log.Println(keyURL)
-			log.Println(ivHex)
+			Logger.Println(keyURL)
+			Logger.Println(ivHex)
 			c.iv, _ = hex.DecodeString(ivHex)
 			c.key, err = c.getBytes(ctx, keyURL)
 			if len(c.key) != 16 {

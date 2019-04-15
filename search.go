@@ -97,7 +97,7 @@ func (c *Client) SearchVideo(q, targets, sort string, offset, limit int, filter 
 		params["jsonFilter"] = string(encoded)
 	}
 
-	body, err := c.getWithParams(searchApiUrl, params)
+	body, err := GetContent(c.HttpClient, searchApiUrl, params)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (c *Client) SearchVideo(q, targets, sort string, offset, limit int, filter 
 		Data []SearchResultItem `json:"data"`
 	}
 	var res searchResponse
-	err = json.Unmarshal([]byte(body), &res)
+	err = json.Unmarshal(body, &res)
 	if err != nil {
 		return nil, err
 	}

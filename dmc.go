@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -77,7 +76,7 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := c.request(req)
+	res, err := DoRequest(c.HttpClient, req)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +91,12 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 		} `json:"data"`
 	}
 	var sessionRes sessionResponse
-	err = json.Unmarshal([]byte(res), &sessionRes)
+	err = json.Unmarshal(res, &sessionRes)
 	if err != nil {
 		return nil, err
 	}
 	if sessionRes.Meta.Status < 200 || sessionRes.Meta.Status >= 300 {
-		log.Println(string(sessionBytes))
+		Logger.Println(string(sessionBytes))
 		return nil, fmt.Errorf("Status: %v %v", sessionRes.Meta.Status, sessionRes.Meta.Message)
 	}
 
@@ -124,7 +123,7 @@ func (c *Client) Heartbeat(session *DMCSession) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := c.request(req)
+	res, err := DoRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
@@ -137,7 +136,7 @@ func (c *Client) Heartbeat(session *DMCSession) error {
 		Data map[string]interface{} `json:"data"`
 	}
 	var sessionRes sessionResponse
-	err = json.Unmarshal([]byte(res), &sessionRes)
+	err = json.Unmarshal(res, &sessionRes)
 	if err != nil {
 		return err
 	}
@@ -155,12 +154,11 @@ func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession, errorL
 		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("finished heartbeat")
 				return
 			case <-time.After(interval):
 				err := c.Heartbeat(session)
 				if err != nil {
-					log.Printf("hearbeat error :%v", err)
+					Logger.Printf("hearbeat error :%v", err)
 					errorCount++
 					if errorCount > errorLimit {
 						return
