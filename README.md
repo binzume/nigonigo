@@ -6,6 +6,7 @@ Experimental implementation of niconico API client for Golang.
 
 - Login
 - Search
+- My list
 - Download video
 
 ## Usage
