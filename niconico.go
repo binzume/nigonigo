@@ -5,12 +5,13 @@ import (
 )
 
 const (
-	loginApiUrl  = "https://account.nicovideo.jp/api/v1/login?site=niconico"
-	searchApiUrl = "http://api.search.nicovideo.jp/api/v2/video/contents/search"
-	topUrl       = "https://www.nicovideo.jp/"
-	watchUrl     = "https://www.nicovideo.jp/watch/"
-	httpOrigin   = "https://www.nicovideo.jp"
-	nvApiUrl     = "https://nvapi.nicovideo.jp/v1/"
+	topUrl        = "https://www.nicovideo.jp/"
+	accountApiUrl = "https://account.nicovideo.jp/api/v1/"
+	logoutUrl     = "https://account.nicovideo.jp/logout"
+	searchApiUrl  = "https://api.search.nicovideo.jp/api/v2/video/contents/search"
+	watchUrl      = "https://www.nicovideo.jp/watch/"
+	httpOrigin    = "https://www.nicovideo.jp"
+	nvApiUrl      = "https://nvapi.nicovideo.jp/v1/"
 )
 
 type Client struct {

@@ -4,10 +4,13 @@ import (
 	"testing"
 )
 
+var testTag = "MMD"
+var testChannelID = "2632720"
+
 func TestSearchByTag(t *testing.T) {
 	client := newClientForTest(t, false)
 
-	result, err := client.SearchByTag("MMD", 0, 1)
+	result, err := client.SearchByTag(testTag, 0, 1)
 	if err != nil {
 		t.Fatalf("Failed to request %v", err)
 	}
