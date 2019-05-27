@@ -1,23 +1,14 @@
 package nigonigo
 
 import (
-	"os"
 	"testing"
 )
 
 var myListNameForTest = "_test_mylist"
+var publicMyListId = "2569551"
 
 func TestGetMyLists(t *testing.T) {
-	if _, err := os.Stat(sessionFile); err != nil {
-		t.Log("session file not exists")
-		t.SkipNow()
-	}
-
-	client := NewClient()
-	err := client.LoadLoginSession(sessionFile)
-	if err != nil {
-		t.Fatalf("Failed to login %v", err)
-	}
+	client := newClientForTest(t, true)
 
 	result, err := client.GetMyLists()
 	if err != nil {
@@ -34,21 +25,24 @@ func TestGetMyLists(t *testing.T) {
 	}
 }
 
-func TestMyList_CreateDelete(t *testing.T) {
-	if _, err := os.Stat(sessionFile); err != nil {
-		t.Log("session file not exists")
-		t.SkipNow()
-	}
+func TestGetDeflistItem(t *testing.T) {
+	client := newClientForTest(t, true)
 
-	client := NewClient()
-	err := client.LoadLoginSession(sessionFile)
+	items, err := client.GetDefListItems()
 	if err != nil {
-		t.Fatalf("Failed to login %v", err)
+		t.Fatalf("Failed to request %v", err)
 	}
+	for _, item := range items {
+		t.Log(item)
+	}
+}
+
+func TestMyList_CreateDelete(t *testing.T) {
+	client := newClientForTest(t, true)
 
 	var mylist = &MyList{Name: myListNameForTest, Description: "test"}
 
-	err = client.CreateMyList(mylist)
+	err := client.CreateMyList(mylist)
 	if err != nil {
 		t.Fatalf("failed to CreateMyList : %v", err)
 	}
@@ -99,9 +93,9 @@ func TestMyList_CreateDelete(t *testing.T) {
 }
 
 func TestGetPublicMyList(t *testing.T) {
-	client := NewClient()
+	client := newClientForTest(t, false)
 
-	_, items, err := client.GetPublicMyList("2569551")
+	_, items, err := client.GetPublicMyList(publicMyListId)
 	if err != nil {
 		t.Fatalf("failed to DeleteMyList : %v", err)
 	}
@@ -116,7 +110,7 @@ func TestGetPublicMyList(t *testing.T) {
 }
 
 func TestMyList_AuthError(t *testing.T) {
-	client := NewClient()
+	client := newClientForTest(t, false)
 
 	_, err := client.GetMyLists()
 	if err != AuthenticationRequired {

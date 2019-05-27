@@ -46,12 +46,12 @@ type MyListItemVideo struct {
 	CommentCount  int    `json:"num_res,string"`
 	FirstRetrieve int64  `json:"first_retrieve"`
 
-	Deleted int `json:"deleted"`
+	Deleted int `json:"deleted,string"`
 }
 
 type MyListItem struct {
 	ItemID      string          `json:"item_id"`
-	Type        int             `json:"item_type"`
+	Type        int             `json:"item_type,string"`
 	Description string          `json:"description"`
 	Data        MyListItemVideo `json:"item_data"`
 
