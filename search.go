@@ -9,13 +9,13 @@ import (
 type SearchResultItem struct {
 	ContentID    string `json:"contentID"`
 	Title        string `json:"title"`
+	ThumbnailURL string `json:"thumbnailUrl"`
 	Description  int    `json:"description"`
 	Duration     int    `json:"lengthSeconds"`
 	UserID       int    `json:"userId"`
 	ChannelID    int    `json:"channelId"`
 	Tags         string `json:"tags"`
 	StartTime    string `json:"startTime"`
-	ThumbnailURL string `json:"thumbnailUrl"`
 	ViewCount    int    `json:"viewCounter"`
 	MylistCount  int    `json:"mylistCounter"`
 	CommentCount int    `json:"commentCounter"`

@@ -22,10 +22,10 @@ type VideoData struct {
 	Video struct {
 		ContentID      string `json:"id"`
 		Title          string `json:"title"`
+		ThumbnailURL   string `json:"thumbnailURL"`
 		Description    string `json:"description"`
 		Duration       int    `json:"duration"`
 		PostedDateTime string `json:"postedDateTime"`
-		ThumbnailURL   string `json:"thumbnailURL"`
 		ViewCount      int    `json:"viewCount"`
 		MylistCount    int    `json:"mylistCount"`
 		DMC            struct {
@@ -245,7 +245,6 @@ func (c *Client) PrepareLicense(data *VideoData) error {
 		// Prepare encryption key.
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
 		Logger.Println(data.Video.DMC.Encryption)
-		Logger.Println(data.Video.DMC.TrackingID)
 		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID)
 		req, err := NewGetReq(url, nil)
 		if err != nil {

@@ -67,7 +67,7 @@ func GetContent(client *http.Client, url string, params map[string]string) ([]by
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("incalid status code :%v", res.StatusCode)
+		return nil, fmt.Errorf("invalid status code :%v", res.StatusCode)
 	}
 	if res.Request.Response != nil && strings.Contains(res.Request.URL.String(), "/account.nicovideo.jp/") {
 		return nil, AuthenticationRequired
