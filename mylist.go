@@ -2,14 +2,9 @@ package nigonigo
 
 import (
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
-	"path"
 	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // errors
@@ -37,14 +32,14 @@ const ItemTypeSeiga = 5
 const ItemTypeBook = 6
 
 type MyListItemVideo struct {
-	ContentID     string `json:"video_id"`
-	Title         string `json:"title"`
-	ThumbnailURL  string `json:"thumbnail_url"`
-	Duration      int    `json:"length_seconds,string"`
-	ViewCount     int    `json:"view_counter,string"`
-	MylistCount   int    `json:"mylist_counter,string"`
-	CommentCount  int    `json:"num_res,string"`
-	FirstRetrieve int64  `json:"first_retrieve"`
+	ContentID    string `json:"video_id"`
+	Title        string `json:"title"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	Duration     int    `json:"length_seconds,string"`
+	ViewCount    int    `json:"view_counter,string"`
+	MylistCount  int    `json:"mylist_counter,string"`
+	CommentCount int    `json:"num_res,string"`
+	StartTime    int64  `json:"first_retrieve"`
 
 	Deleted int `json:"deleted,string"`
 }
@@ -263,68 +258,12 @@ func checkMylistResponse(body []byte) error {
 	return err
 }
 
-func (c *Client) GetPublicMyList(mylistId string) (*MyList, []*MyListItem, error) {
-	body, err := GetContent(c.HttpClient, topUrl+"/mylist/"+mylistId+"?rss=2.0", nil)
+func (c *Client) GetPublicMyList(mylistId string) (*MyList, []*VideoInfo, error) {
+	body, err := GetContent(c.HttpClient, topUrl+"/mylist/"+mylistId+"?rss=2.0&numbers=1", nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var myListRss struct {
-		Title string `xml:"channel>title"`
-		Items []struct {
-			Title       string `xml:"title"`
-			Link        string `xml:"link"`
-			PubDate     string `xml:"pubDate"`
-			Description string `xml:"description"`
-		} `xml:"channel>item"`
-	}
-	err = xml.Unmarshal(body, &myListRss)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var desc struct {
-		Imgs []struct {
-			Src string `xml:"src,attr"`
-		} `xml:"p>img"`
-		Info []struct {
-			Class string `xml:"class,attr"`
-			Value string `xml:",chardata"`
-		} `xml:"p>small>strong"`
-	}
-	var items []*MyListItem
-	for i, ritem := range myListRss.Items {
-		id := path.Base(ritem.Link)
-		t, _ := time.Parse(time.RFC1123Z, ritem.PubDate)
-
-		item := &MyListItem{
-			ItemID:      id,
-			Data:        MyListItemVideo{Title: ritem.Title, ContentID: id, FirstRetrieve: t.Unix()},
-			CreatedTime: t.Unix(),
-			UpdatedTime: t.Unix(),
-		}
-		err = xml.Unmarshal([]byte("<x>"+myListRss.Items[i].Description+"</x>"), &desc)
-		if err == nil && len(desc.Imgs) > 0 {
-			item.Data.ThumbnailURL = desc.Imgs[0].Src
-		}
-		for _, d := range desc.Info {
-			if d.Class == "nico-info-length" {
-				t := strings.SplitN(d.Value, ":", 2)
-				if len(t) == 2 {
-					m, _ := strconv.Atoi(t[0])
-					s, _ := strconv.Atoi(t[1])
-					item.Data.Duration = m*60 + s
-				}
-			}
-			if d.Class == "nico-info-date" {
-				t, err := time.Parse("2006年01月02日 15：04：05", d.Value)
-				if err == nil {
-					item.Data.FirstRetrieve = t.Unix()
-				}
-			}
-		}
-		items = append(items, item)
-	}
-
-	return &MyList{ID: mylistId, Name: myListRss.Title}, items, nil
+	videos, err := parseVideoRss(body)
+	return &MyList{ID: mylistId, Name: videos.Title}, videos.Items, nil
 }
