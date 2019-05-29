@@ -17,12 +17,12 @@ var UserAgent = "Mozilla/5.0 Nigonigo/1.0"
 
 func NewHttpClient() (*http.Client, error) {
 	jar, err := cookiejar.New(nil)
-	return &http.Client{Jar: jar, Transport: &AgentSetter{}}, err
+	return &http.Client{Jar: jar, Transport: &agentSetter{}}, err
 }
 
-type AgentSetter struct{}
+type agentSetter struct{}
 
-func (t *AgentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *agentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Origin", httpOrigin)
 	if RequestLogger != nil {
@@ -31,7 +31,7 @@ func (t *AgentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(req)
 }
 
-func NewPostReq(urlstr string, params map[string]string) (*http.Request, error) {
+func newPostReq(urlstr string, params map[string]string) (*http.Request, error) {
 	values := url.Values{}
 	for k, v := range params {
 		values.Set(k, v)
@@ -45,7 +45,7 @@ func NewPostReq(urlstr string, params map[string]string) (*http.Request, error) 
 	return req, nil
 }
 
-func NewGetReq(urlstr string, params map[string]string) (*http.Request, error) {
+func newGetReq(urlstr string, params map[string]string) (*http.Request, error) {
 	if len(params) == 0 {
 		return http.NewRequest("GET", urlstr, nil)
 	}
@@ -56,8 +56,8 @@ func NewGetReq(urlstr string, params map[string]string) (*http.Request, error) {
 	return http.NewRequest("GET", urlstr+"?"+values.Encode(), nil)
 }
 
-func GetContent(client *http.Client, url string, params map[string]string) ([]byte, error) {
-	req, err := NewGetReq(url, params)
+func getContent(client *http.Client, url string, params map[string]string) ([]byte, error) {
+	req, err := newGetReq(url, params)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func GetContent(client *http.Client, url string, params map[string]string) ([]by
 	return ioutil.ReadAll(res.Body)
 }
 
-func DoRequest(client *http.Client, req *http.Request) ([]byte, error) {
+func doRequest(client *http.Client, req *http.Request) ([]byte, error) {
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err

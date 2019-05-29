@@ -1,3 +1,6 @@
+// niconico client for Golang.
+//
+// https://www.nicovideo.jp/
 package nigonigo
 
 import (

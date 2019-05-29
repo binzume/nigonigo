@@ -60,15 +60,7 @@ func TestDownloadLoggedIn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 
-	result, err := client.SearchByChannel(testChannelID, 0, 10)
-	if err != nil {
-		t.Fatalf("Failed to request %v", err)
-	}
-	if len(result.Items) == 0 {
-		t.Fatalf("Failed to get result: %v", result)
-	}
-
-	contantID := result.Items[0].ContentID
+	contantID := testVid
 	session, err := client.CreateDMCSessionById(contantID)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)

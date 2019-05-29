@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var (
+const (
 	errorMessageNotFound = "この動画は存在しないか、削除された可能性があります。"
 	errorMessageExpired  = "お探しの動画は視聴可能期間が終了しています"
 	errorMessageChannel  = "チャンネル会員専用動画です"
@@ -110,7 +110,7 @@ func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 }
 
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
-	res, err := GetContent(c.HttpClient, watchUrl+contentId, nil)
+	res, err := getContent(c.HttpClient, watchUrl+contentId, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -246,14 +246,14 @@ func (c *Client) PrepareLicense(data *VideoData) error {
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
 		Logger.Println(data.Video.DMC.Encryption)
 		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID)
-		req, err := NewGetReq(url, nil)
+		req, err := newGetReq(url, nil)
 		if err != nil {
 			return err
 		}
 		req.Header.Set("X-Frontend-Id", "6")
 		req.Header.Set("X-Frontend-Version", "0")
 
-		_, err = DoRequest(c.HttpClient, req)
+		_, err = doRequest(c.HttpClient, req)
 		if err != nil {
 			return err
 		}

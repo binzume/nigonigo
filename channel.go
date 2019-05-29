@@ -9,7 +9,7 @@ var channelUrl = "https://ch.nicovideo.jp/"
 
 type SearchChannelMode string
 
-var (
+const (
 	SearchChannelModeKeyword SearchChannelMode = "s"
 	SearchChannelModeTag     SearchChannelMode = "t"
 )
@@ -21,7 +21,7 @@ type ChannelInfo struct {
 }
 
 func (c *Client) SearchChannel(q string, mode SearchChannelMode, page int) ([]*ChannelInfo, error) {
-	body, err := GetContent(c.HttpClient, channelUrl+"search/"+q+"?mode="+string(mode)+"&page="+fmt.Sprint(page), nil)
+	body, err := getContent(c.HttpClient, channelUrl+"search/"+q+"?mode="+string(mode)+"&page="+fmt.Sprint(page), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *Client) SearchChannel(q string, mode SearchChannelMode, page int) ([]*C
 }
 
 func (c *Client) GetChannelVideos(channelID string, page int) (*VideoListPage, error) {
-	body, err := GetContent(c.HttpClient, channelUrl+channelID+"/video?rss=2.0&numbers=1&page="+fmt.Sprint(page), nil)
+	body, err := getContent(c.HttpClient, channelUrl+channelID+"/video?rss=2.0&numbers=1&page="+fmt.Sprint(page), nil)
 	if err != nil {
 		return nil, err
 	}

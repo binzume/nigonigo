@@ -6,23 +6,56 @@ import (
 	"strings"
 )
 
+// doc https://site.nicovideo.jp/search-api-docs/search.html
+
 type SearchResultItem struct {
 	ContentID    string `json:"contentID"`
 	Title        string `json:"title"`
 	ThumbnailURL string `json:"thumbnailUrl"`
-	Description  int    `json:"description"`
 	Duration     int    `json:"lengthSeconds"`
-	UserID       int    `json:"userId"`
-	ChannelID    int    `json:"channelId"`
-	Tags         string `json:"tags"`
-	StartTime    string `json:"startTime"`
 	ViewCount    int    `json:"viewCounter"`
 	MylistCount  int    `json:"mylistCounter"`
 	CommentCount int    `json:"commentCounter"`
+
+	Description int    `json:"description"`
+	UserID      int    `json:"userId"`
+	ChannelID   int    `json:"channelId"`
+	Tags        string `json:"tags"`
+	StartTime   string `json:"startTime"`
 }
 
-// TODO
-var DefaultFields = []string{"contentId", "title", "channelId", "userId", "tags", "startTime"}
+type SearchField = string
+
+const (
+	SearchFieldContentID      SearchField = "contentId"
+	SearchFieldTitle          SearchField = "title"
+	SearchFieldThumbnailURL   SearchField = "thumbnailUrl"
+	SearchFieldViewCounter    SearchField = "viewCounter"
+	SearchFieldMylistCounter  SearchField = "mylistCounter"
+	SearchFieldCommentCounter SearchField = "commentCounter"
+	SearchFieldDescription    SearchField = "description"
+	SearchFieldTags           SearchField = "tags"
+	SearchFieldTagsExact      SearchField = "tagsExact"
+	SearchFieldLockTagsExact  SearchField = "lockTagsExact"
+	SearchFieldCategoryTags   SearchField = "categoryTags"
+	SearchFieldGenre          SearchField = "genre"
+	SearchFieldGenreKey       SearchField = "genreKey"
+	SearchFieldStartTime      SearchField = "startTime"
+	SearchFieldUserID         SearchField = "userId"
+	SearchFieldChannelID      SearchField = "channelId"
+	SearchFieldThreadID       SearchField = "threadId"
+)
+
+var DefaultFields = []SearchField{
+	SearchFieldContentID,
+	SearchFieldTitle,
+	SearchFieldThumbnailURL,
+	SearchFieldTags,
+	SearchFieldStartTime,
+	SearchFieldUserID,
+	SearchFieldChannelID,
+	SearchFieldThreadID,
+}
 
 type SearchResult struct {
 	TotalCount int
@@ -33,57 +66,57 @@ type SearchResult struct {
 // TODO
 type SearchFilter interface{}
 
-type SimpleFilter struct {
-	Type  string `json:"type"`
-	Field string `json:"field"`
-	Value string `json:"value"`
+type simpleFilter struct {
+	Type  string      `json:"type"`
+	Field SearchField `json:"field"`
+	Value string      `json:"value"`
 }
-type RangeFilter struct {
-	Type string `json:"type"`
-	From string `json:"from,omitempty"`
-	To   string `json:"to,omitempty"`
+type rangeFilter struct {
+	Type  string      `json:"type"`
+	Field SearchField `json:"field"`
+	From  string      `json:"from,omitempty"`
+	To    string      `json:"to,omitempty"`
+	IncludeUpper bool `json:"include_upper"`
 }
 
-type FilterGroup struct {
+type groupFilter struct {
 	Type    string         `json:"type"`
 	Filters []SearchFilter `json:"filters"`
 }
 
 func AndFilter(filters []SearchFilter) SearchFilter {
-	return &FilterGroup{"and", filters}
+	return &groupFilter{"and", filters}
 }
 
 func OrFilter(filters []SearchFilter) SearchFilter {
-	return &FilterGroup{"or", filters}
+	return &groupFilter{"or", filters}
 }
 
 func NotFilter(filter SearchFilter) SearchFilter {
 	return map[string]interface{}{"type": "not", "filter": filter}
 }
 
-func EqualFilter(field, value string) SearchFilter {
-	return &SimpleFilter{"equal", field, value}
+func EqualFilter(field SearchField, value string) SearchFilter {
+	return &simpleFilter{"equal", field, value}
+}
+
+func RangeFilter(field SearchField, from, to string, includeUpper bool) SearchFilter {
+	return &rangeFilter{"range", field, from, to, includeUpper}
 }
 
 func (c *Client) SearchByTag(tag string, offset, limit int) (*SearchResult, error) {
-	return c.SearchVideo(tag, "tagsExact,categoryTags", "-startTime", offset, limit, nil)
+	return c.SearchVideo(tag, []SearchField{"tagsExact,categoryTags"}, DefaultFields, "-startTime", offset, limit, nil)
 }
 
 func (c *Client) SearchByKeyword(s string, offset, limit int) (*SearchResult, error) {
-	return c.SearchVideo(s, "description,title", "-startTime", offset, limit, nil)
+	return c.SearchVideo(s, []SearchField{"description,title"}, DefaultFields, "-startTime", offset, limit, nil)
 }
 
-func (c *Client) SearchByChannel(channelID string, offset, limit int) (*SearchResult, error) {
-	filter := EqualFilter("channelId", channelID)
-	q := "アニメ OR ゲーム OR 料理" // TODO
-	return c.SearchVideo(q, "categoryTags", "-startTime", offset, limit, filter)
-}
-
-func (c *Client) SearchVideo(q, targets, sort string, offset, limit int, filter SearchFilter) (*SearchResult, error) {
+func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort string, offset, limit int, filter SearchFilter) (*SearchResult, error) {
 	params := map[string]string{
 		"q":        q,
-		"targets":  targets,
-		"fields":   strings.Join(DefaultFields, ","),
+		"targets":  strings.Join(targets, ","),
+		"fields":   strings.Join(fields, ","),
 		"_sort":    sort,
 		"_offset":  fmt.Sprint(offset),
 		"_limit":   fmt.Sprint(limit),
@@ -97,10 +130,11 @@ func (c *Client) SearchVideo(q, targets, sort string, offset, limit int, filter 
 		params["jsonFilter"] = string(encoded)
 	}
 
-	body, err := GetContent(c.HttpClient, searchApiUrl, params)
+	body, err := getContent(c.HttpClient, searchApiUrl, params)
 	if err != nil {
 		return nil, err
 	}
+	Logger.Println(string(body))
 
 	type searchResponse struct {
 		Meta struct {

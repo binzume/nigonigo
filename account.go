@@ -44,7 +44,7 @@ func (c *Client) LoginWithPassword(id, password string) error {
 		"mail_tel": id,
 		"password": password,
 	}
-	req, err := NewPostReq(accountApiUrl+"login?site=niconico", params)
+	req, err := newPostReq(accountApiUrl+"login?site=niconico", params)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (c *Client) LoginWithPassword(id, password string) error {
 }
 
 func (c *Client) Logout() error {
-	req, err := NewGetReq(logoutUrl, nil)
+	req, err := newGetReq(logoutUrl, nil)
 	if err != nil {
 		return err
 	}
@@ -107,11 +107,11 @@ func (c *Client) SetSessionString(sessionStr string) error {
 	parsed, _ := url.Parse(topUrl)
 	c.HttpClient.Jar.SetCookies(parsed, []*http.Cookie{cookie})
 
-	return c.UpdateLoginSession()
+	return c.updateLoginSession()
 }
 
-func (c *Client) UpdateLoginSession() error {
-	req, err := NewGetReq(topUrl, nil)
+func (c *Client) updateLoginSession() error {
+	req, err := newGetReq(topUrl, nil)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func (c *Client) GetAvailableSessions() ([]string, error) {
 		sessions = append(sessions, c.Session.SessionString)
 	}
 
-	body, err := GetContent(c.HttpClient, "https://account.nicovideo.jp/my/history/login", nil)
+	body, err := getContent(c.HttpClient, "https://account.nicovideo.jp/my/history/login", nil)
 	if err != nil {
 		return nil, err
 	}

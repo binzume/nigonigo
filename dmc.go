@@ -76,7 +76,7 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 	return session, nil
 }
 
-func (c *Client) Heartbeat(session *DMCSession) error {
+func (c *Client) heartbeat(session *DMCSession) error {
 	sessionStr, err := json.Marshal(session.fullData)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (c *Client) Heartbeat(session *DMCSession) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (c *Client) Heartbeat(session *DMCSession) error {
 	return nil
 }
 
-func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession, errorLimit int) {
+func (c *Client) startHeartbeat(ctx context.Context, session *DMCSession, errorLimit int) {
 	go func() {
 		errorCount := 0
 		interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
@@ -156,7 +156,7 @@ func (c *Client) StartHeartbeat(ctx context.Context, session *DMCSession, errorL
 			case <-ctx.Done():
 				return
 			case <-time.After(interval):
-				err := c.Heartbeat(session)
+				err := c.heartbeat(session)
 				if err != nil {
 					Logger.Printf("hearbeat error :%v", err)
 					errorCount++
@@ -177,7 +177,7 @@ func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer)
 	if session.KeepMethod.Heartbeat != nil {
 		hbCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		c.StartHeartbeat(hbCtx, session, 2)
+		c.startHeartbeat(hbCtx, session, 2)
 	}
 
 	if session.IsHLS() {

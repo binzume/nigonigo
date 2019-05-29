@@ -40,7 +40,7 @@ func TestLogout(t *testing.T) {
 		t.Fatalf("Failed to logout: %v", err)
 	}
 
-	err = client.UpdateLoginSession()
+	err = client.updateLoginSession()
 	if err == nil {
 		t.Fatalf("err should be not nil")
 	}

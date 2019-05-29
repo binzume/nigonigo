@@ -56,7 +56,7 @@ type MyListItem struct {
 }
 
 func (c *Client) GetMyLists() ([]*MyList, error) {
-	body, err := GetContent(c.HttpClient, topUrl+"api/mylistgroup/list", nil)
+	body, err := getContent(c.HttpClient, topUrl+"api/mylistgroup/list", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,12 +89,12 @@ func (c *Client) CreateMyList(mylist *MyList) error {
 		"token":        token,
 	}
 
-	req, err := NewPostReq(topUrl+"api/mylistgroup/add", params)
+	req, err := newPostReq(topUrl+"api/mylistgroup/add", params)
 	if err != nil {
 		return err
 	}
 
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
@@ -123,11 +123,11 @@ func (c *Client) DeleteMyList(mylistId string) error {
 		"token":    token,
 	}
 
-	req, err := NewPostReq(topUrl+"api/mylistgroup/delete", params)
+	req, err := newPostReq(topUrl+"api/mylistgroup/delete", params)
 	if err != nil {
 		return err
 	}
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 		url = topUrl + "api/deflist/list"
 	}
 
-	body, err := GetContent(c.HttpClient, url, nil)
+	body, err := getContent(c.HttpClient, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -182,11 +182,11 @@ func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
 	} else {
 		url = topUrl + "api/deflist/add"
 	}
-	req, err := NewPostReq(url, params)
+	req, err := newPostReq(url, params)
 	if err != nil {
 		return err
 	}
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
@@ -210,18 +210,18 @@ func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
 	} else {
 		url = topUrl + "api/deflist/delete"
 	}
-	req, err := NewPostReq(url, params)
+	req, err := newPostReq(url, params)
 	if err != nil {
 		return err
 	}
-	res, err := DoRequest(c.HttpClient, req)
+	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
 	return checkMylistResponse(res)
 }
 func (c *Client) GetCsrfToken() (string, error) {
-	body, err := GetContent(c.HttpClient, topUrl+"my/mylist", nil)
+	body, err := getContent(c.HttpClient, topUrl+"my/mylist", nil)
 	if err != nil {
 		return "", err
 	}
@@ -259,7 +259,7 @@ func checkMylistResponse(body []byte) error {
 }
 
 func (c *Client) GetPublicMyList(mylistId string) (*MyList, []*VideoInfo, error) {
-	body, err := GetContent(c.HttpClient, topUrl+"/mylist/"+mylistId+"?rss=2.0&numbers=1", nil)
+	body, err := getContent(c.HttpClient, topUrl+"/mylist/"+mylistId+"?rss=2.0&numbers=1", nil)
 	if err != nil {
 		return nil, nil, err
 	}

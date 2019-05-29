@@ -30,7 +30,7 @@ func NewHLSDownloader(client *http.Client) *HLSDownloader {
 }
 
 func (c *HLSDownloader) getBytes(ctx context.Context, url string) ([]byte, error) {
-	req, err := NewGetReq(url, nil)
+	req, err := newGetReq(url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func relative(base, relative string) string {
 }
 
 func (c *HLSDownloader) GetSegment(ctx context.Context, url string, w io.Writer) error {
-	req, err := NewGetReq(url, nil)
+	req, err := newGetReq(url, nil)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ func NewHTTPDownloader(client *http.Client) *HTTPDownloader {
 }
 
 func (c *HTTPDownloader) Download(ctx context.Context, url string, w io.Writer) error {
-	req, err := NewGetReq(url, nil)
+	req, err := newGetReq(url, nil)
 	if err != nil {
 		return err
 	}

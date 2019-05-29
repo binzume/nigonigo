@@ -17,16 +17,26 @@ func TestSearchByTag(t *testing.T) {
 	if len(result.Items) != 1 {
 		t.Fatalf("Failed to get result. items: %v", result.Items)
 	}
+	for _, item := range result.Items {
+		t.Log(item)
+	}
 }
 
-func TestSearchByChannel(t *testing.T) {
+func TestSearchVideo(t *testing.T) {
 	client := newClientForTest(t, false)
 
-	result, err := client.SearchByChannel(testChannelID, 0, 1)
+	filter := EqualFilter("channelId", testChannelID)
+
+	q := "アニメ OR ゲーム OR 料理" // TODO
+	result, err := client.SearchVideo(q, []SearchField{"categoryTags"}, DefaultFields, "-startTime", 0, 1, filter)
+
 	if err != nil {
 		t.Fatalf("Failed to request %v", err)
 	}
 	if len(result.Items) != 1 {
 		t.Fatalf("Failed to get result. items: %v  (%v)", result.Items, result)
+	}
+	for _, item := range result.Items {
+		t.Log(item)
 	}
 }
