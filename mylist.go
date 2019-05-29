@@ -27,15 +27,19 @@ type MyList struct {
 	PlaylistToken string `json:"watch_playlist"`
 }
 
-const ItemTypeVideo = 0
-const ItemTypeSeiga = 5
-const ItemTypeBook = 6
+type MyListItemType int
+
+const (
+	MyListItemTypeVideo MyListItemType = 0
+	MyListItemTypeSeiga MyListItemType = 5
+	MyListItemTypeBook  MyListItemType = 6
+)
 
 type MyListItem struct {
-	ItemID      string    `json:"item_id"`
-	Type        int       `json:"item_type,string"`
-	Description string    `json:"description"`
-	Data        VideoInfo `json:"item_data"`
+	ItemID      string         `json:"item_id"`
+	Type        MyListItemType `json:"item_type,string"`
+	Description string         `json:"description"`
+	Data        VideoInfo      `json:"item_data"`
 
 	CreatedTime int64 `json:"create_time"`
 	UpdatedTime int64 `json:"update_time"`
