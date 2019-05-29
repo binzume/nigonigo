@@ -17,6 +17,8 @@ type VideoInfo struct {
 	MylistCount  int    `json:"mylist_counter,string"`
 	CommentCount int    `json:"num_res,string"`
 	StartTime    int64  `json:"first_retrieve"`
+
+	Deleted int `json:"deleted,string"`
 }
 
 type VideoListPage struct {

@@ -240,7 +240,7 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 	return reqsession, nil
 }
 
-func (c *Client) PrepareLicense(data *VideoData) error {
+func (c *Client) prepareLicense(data *VideoData) error {
 	if data.Video.DMC.Encryption["hls_encryption_v1"] != nil {
 		// Prepare encryption key.
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
@@ -267,7 +267,7 @@ func (c *Client) CreateDMCSessionById(contentId string) (*DMCSession, error) {
 		return nil, err
 	}
 
-	err = c.PrepareLicense(data)
+	err = c.prepareLicense(data)
 	if err != nil {
 		return nil, err
 	}

@@ -10,36 +10,13 @@ import (
 	"strings"
 )
 
-type AccountConfig struct {
-	ID       string `json:"id"`
-	Password string `json:"password"`
-}
-
 type NicoSession struct {
 	NiconicoID    string `json:"niconicoId"`
 	IsPremium     bool   `json:"premium"`
 	SessionString string `json:"user_session"`
 }
 
-func (c *Client) LoginWithJsonFile(path string) error {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var config AccountConfig
-	err = json.Unmarshal(buf, &config)
-	if err != nil {
-		return err
-	}
-	return c.Login(&config)
-}
-
-func (c *Client) Login(ac *AccountConfig) error {
-	return c.LoginWithPassword(ac.ID, ac.Password)
-}
-
-func (c *Client) LoginWithPassword(id, password string) error {
+func (c *Client) Login(id, password string) error {
 	params := map[string]string{
 		"mail_tel": id,
 		"password": password,
@@ -60,6 +37,23 @@ func (c *Client) LoginWithPassword(id, password string) error {
 	}
 
 	return c.checkSessionStatus(res)
+}
+
+func (c *Client) LoginWithJsonFile(path string) error {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var config struct {
+		ID       string `json:"id"`
+		Password string `json:"password"`
+	}
+	err = json.Unmarshal(buf, &config)
+	if err != nil {
+		return err
+	}
+	return c.Login(config.ID, config.Password)
 }
 
 func (c *Client) Logout() error {

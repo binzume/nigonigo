@@ -31,24 +31,11 @@ const ItemTypeVideo = 0
 const ItemTypeSeiga = 5
 const ItemTypeBook = 6
 
-type MyListItemVideo struct {
-	ContentID    string `json:"video_id"`
-	Title        string `json:"title"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	Duration     int    `json:"length_seconds,string"`
-	ViewCount    int    `json:"view_counter,string"`
-	MylistCount  int    `json:"mylist_counter,string"`
-	CommentCount int    `json:"num_res,string"`
-	StartTime    int64  `json:"first_retrieve"`
-
-	Deleted int `json:"deleted,string"`
-}
-
 type MyListItem struct {
-	ItemID      string          `json:"item_id"`
-	Type        int             `json:"item_type,string"`
-	Description string          `json:"description"`
-	Data        MyListItemVideo `json:"item_data"`
+	ItemID      string    `json:"item_id"`
+	Type        int       `json:"item_type,string"`
+	Description string    `json:"description"`
+	Data        VideoInfo `json:"item_data"`
 
 	CreatedTime int64 `json:"create_time"`
 	UpdatedTime int64 `json:"update_time"`
@@ -75,7 +62,7 @@ func (c *Client) GetMyLists() ([]*MyList, error) {
 }
 
 func (c *Client) CreateMyList(mylist *MyList) error {
-	token, err := c.GetCsrfToken()
+	token, err := c.getCsrfToken()
 	if err != nil {
 		return err
 	}
@@ -114,7 +101,7 @@ func (c *Client) CreateMyList(mylist *MyList) error {
 }
 
 func (c *Client) DeleteMyList(mylistId string) error {
-	token, err := c.GetCsrfToken()
+	token, err := c.getCsrfToken()
 	if err != nil {
 		return err
 	}
@@ -165,7 +152,7 @@ func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 }
 
 func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
-	token, err := c.GetCsrfToken()
+	token, err := c.getCsrfToken()
 	if err != nil {
 		return err
 	}
@@ -194,7 +181,7 @@ func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
 }
 
 func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
-	token, err := c.GetCsrfToken()
+	token, err := c.getCsrfToken()
 	if err != nil {
 		return err
 	}
@@ -220,7 +207,7 @@ func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
 	}
 	return checkMylistResponse(res)
 }
-func (c *Client) GetCsrfToken() (string, error) {
+func (c *Client) getCsrfToken() (string, error) {
 	body, err := getContent(c.HttpClient, topUrl+"my/mylist", nil)
 	if err != nil {
 		return "", err
