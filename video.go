@@ -261,13 +261,16 @@ func (c *Client) prepareLicense(data *VideoData) error {
 	return nil
 }
 
-func (c *Client) CreateDMCSessionById(contentId string) (*DMCSession, error) {
-	data, err := c.GetVideoData(contentId)
+func (c *Client) CreateDMCSessionById(contentID string) (*DMCSession, error) {
+	data, err := c.GetVideoData(contentID)
 	if err != nil {
 		return nil, err
 	}
+	return c.CreateDMCSessionByVideoData(data)
+}
 
-	err = c.prepareLicense(data)
+func (c *Client) CreateDMCSessionByVideoData(data *VideoData) (*DMCSession, error) {
+	err := c.prepareLicense(data)
 	if err != nil {
 		return nil, err
 	}
