@@ -35,6 +35,20 @@ func main() {
 }
 ```
 
+### Command line tool:
+
+```bash
+go install github.com/binzume/nigonigo/cmd/nigo
+
+nigo search -limit 10 -t アニメ
+nigo search -ch 1 ねこ
+nigo auth -i YOUR_MAILADDRESS -p YOUR_PASSWORD -s session.json
+ Password: ********
+ Saved: session.json
+nigo download -s session.json sm9
+open sm9.mp4
+```
+
 ## License
 
 MIT License

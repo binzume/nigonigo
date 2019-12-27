@@ -105,14 +105,17 @@ func RangeFilter(field SearchField, from, to string, includeUpper bool) SearchFi
 }
 
 func (c *Client) SearchByTag(tag string, offset, limit int) (*SearchResult, error) {
-	return c.SearchVideo(tag, []SearchField{"tagsExact,categoryTags"}, DefaultFields, "-startTime", offset, limit, nil)
+	return c.SearchVideo(tag, []SearchField{"tagsExact,categoryTags"}, nil, "-startTime", offset, limit, nil)
 }
 
 func (c *Client) SearchByKeyword(s string, offset, limit int) (*SearchResult, error) {
-	return c.SearchVideo(s, []SearchField{"description,title"}, DefaultFields, "-startTime", offset, limit, nil)
+	return c.SearchVideo(s, []SearchField{"description,title"}, nil, "-startTime", offset, limit, nil)
 }
 
 func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort string, offset, limit int, filter SearchFilter) (*SearchResult, error) {
+	if fields == nil {
+		fields = DefaultFields
+	}
 	params := map[string]string{
 		"q":        q,
 		"targets":  strings.Join(targets, ","),
@@ -134,7 +137,7 @@ func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort strin
 	if err != nil {
 		return nil, err
 	}
-	Logger.Println(string(body))
+	// Logger.Println(string(body))
 
 	type searchResponse struct {
 		Meta struct {
