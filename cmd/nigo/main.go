@@ -6,7 +6,7 @@ import (
 )
 
 func printMainUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: %v search|auth|download [params] [-help]", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download [params] [-help]", os.Args[0])
 	os.Exit(1)
 }
 
@@ -20,6 +20,8 @@ func main() {
 		cmdAuth()
 	case "search":
 		cmdSearch()
+	case "mylist":
+		cmdMylist()
 	case "download":
 		cmdDownload()
 	default:

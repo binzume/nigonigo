@@ -20,8 +20,8 @@ type MyList struct {
 	UserID      int64  `json:"user_id,string"`
 	Public      int    `json:"public,string"`
 
-	CreatedDate int64 `json:"create_date"`
-	UpdatedDate int64 `json:"update_date"`
+	CreatedTime int64 `json:"create_time"`
+	UpdatedTime int64 `json:"update_time"`
 
 	SortOrder     string `json:"sort_order"`
 	PlaylistToken string `json:"watch_playlist"`
@@ -35,9 +35,19 @@ const (
 	MyListItemTypeBook  MyListItemType = 6
 )
 
+func (m *MyListItemType) UnmarshalJSON(b []byte) error {
+	var value json.Number
+	if err := json.Unmarshal(b, &value); err != nil {
+		return err
+	}
+	i, err := value.Int64()
+	*m = MyListItemType(i)
+	return err
+}
+
 type MyListItem struct {
 	ItemID      string         `json:"item_id"`
-	Type        MyListItemType `json:"item_type,string"`
+	Type        MyListItemType `json:"item_type"`
 	Description string         `json:"description"`
 	Data        VideoInfo      `json:"item_data"`
 
@@ -131,10 +141,10 @@ func (c *Client) GetDefListItems() ([]*MyListItem, error) {
 
 func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 	var url string
-	if mylistId != "" {
-		url = topUrl + "api/mylist/list?group_id=" + mylistId
-	} else {
+	if mylistId == "" || mylistId == "default" {
 		url = topUrl + "api/deflist/list"
+	} else {
+		url = topUrl + "api/mylist/list?group_id=" + mylistId
 	}
 
 	body, err := getContent(c.HttpClient, url, nil)
