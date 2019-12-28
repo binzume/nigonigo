@@ -49,9 +49,9 @@ usage:
 ```bash
 nigo search -limit 10 -t "アニメ"
 nigo search -ch 1 "ねこ"
-nigo auth -i "YOUR_MAILADDRESS" -s session.json
+nigo auth -i "YOUR_MAILADDRESS"
  Password: ********
-nigo download -s session.json sm9
+nigo download sm9
 open sm9.mp4
 ```
 

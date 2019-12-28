@@ -78,7 +78,7 @@ func cmdDownload() {
 	id := flag.String("i", "", "mail address")
 	password := flag.String("p", "", "password")
 	accountFile := flag.String("a", "account.json", "account.json")
-	sessionFile := flag.String("s", "session.json", "session.json")
+	sessionFile := flag.String("s", defaultSessionFilePath, "session.json")
 	saveThumbnail := flag.Bool("t", false, "save thumbnail")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
@@ -89,27 +89,9 @@ func cmdDownload() {
 	}
 
 	client := nigonigo.NewClient()
-	var loginerr error
-	if *sessionFile != "" {
-		err := client.LoadLoginSession(*sessionFile)
-		if err != nil {
-			loginerr = err
-		}
-	}
-	if client.Session == nil && *accountFile != "" {
-		err := client.LoginWithJsonFile(*accountFile)
-		if err != nil {
-			loginerr = err
-		}
-	}
-	if client.Session == nil && *id != "" {
-		err := client.Login(*id, *password)
-		if err != nil {
-			loginerr = err
-		}
-	}
-	if loginerr != nil && client.Session == nil {
-		log.Fatalf("login failed: %v", loginerr)
+	err := authLogin(client, *sessionFile, *accountFile, *id, *password)
+	if err != nil {
+		log.Println("Failed to login: ", err)
 	}
 
 	for _, contentID := range flag.Args() {

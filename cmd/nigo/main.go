@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
+	"path/filepath"
 )
+
+var defaultSessionFilePath = ".nigo_session.json"
 
 func printMainUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download [params] [-help]", os.Args[0])
@@ -13,6 +17,10 @@ func printMainUsage() {
 func main() {
 	if len(os.Args) < 2 {
 		printMainUsage()
+	}
+
+	if u, err := user.Current(); err == nil {
+		defaultSessionFilePath = filepath.Join(u.HomeDir, ".nigo_session.json")
 	}
 
 	switch os.Args[1] {

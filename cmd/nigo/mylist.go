@@ -16,17 +16,15 @@ func cmdMylist() {
 		fmt.Fprintf(os.Stderr, "Usage: %s mylist [options] [mylistID|default]\n", os.Args[0])
 		flag.PrintDefaults()
 	}
-	sessionFile := flag.String("s", "session.json", "session.json")
+	sessionFile := flag.String("s", defaultSessionFilePath, "session.json")
 	jsonFormat := flag.Bool("json", false, "json output")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
 	client := nigonigo.NewClient()
-	if *sessionFile != "" {
-		err := client.LoadLoginSession(*sessionFile)
-		if err != nil {
-			log.Fatalf("Failed to login %v", err)
-		}
+	err := authLogin(client, *sessionFile, "", "", "")
+	if err != nil {
+		log.Fatalf("Failed to login: %v", err)
 	}
 
 	if flag.Arg(0) == "" {
