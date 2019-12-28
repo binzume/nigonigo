@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,16 +11,23 @@ import (
 )
 
 func cmdSearch() {
-	channelID := flag.String("ch", "", "channelId")
-	userID := flag.String("user", "", "userId")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s search [options] [query]\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	tag := flag.String("t", "", "tag")
 	offset := flag.Int("offset", 0, "offset")
 	limit := flag.Int("limit", 100, "limit")
+	jsonFormat := flag.Bool("json", false, "json output")
+	sortOrder := flag.String("sort", "-startTime", "sort order")
+	filterGenre := flag.String("genre", "", "filter by genre")
+	filterUserID := flag.String("user", "", "filter by userId")
+	filterChannelID := flag.String("ch", "", "filter by channelId")
+	filterViewCount := flag.String("viewCount", "0", "filter by viewCounter")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
 	if flag.NArg() == 0 && *tag == "" {
-		log.Println("usage: go run search.go hoge")
 		flag.Usage()
 		return
 	}
@@ -28,12 +36,19 @@ func cmdSearch() {
 	client := nigonigo.NewClient()
 
 	var filters []nigonigo.SearchFilter
-	if *channelID != "" {
-		filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldChannelID, *channelID))
+	if *filterGenre != "" {
+		filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldGenre, *filterGenre))
 	}
-	if *userID != "" {
-		filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldUserID, *userID))
+	if *filterUserID != "" {
+		filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldUserID, *filterUserID))
 	}
+	if *filterChannelID != "" {
+		filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldChannelID, *filterChannelID))
+	}
+	if *filterViewCount != "0" {
+		filters = append(filters, nigonigo.RangeFilter(nigonigo.SearchFieldViewCounter, *filterViewCount, "", true))
+	}
+
 	var filter nigonigo.SearchFilter
 	if len(filters) == 1 {
 		filter = filters[0]
@@ -49,12 +64,17 @@ func cmdSearch() {
 		searchField = []nigonigo.SearchField{"description,title"}
 	}
 
-	result, err := client.SearchVideo(q, searchField, nil, "-startTime", *offset, *limit, filter)
+	result, err := client.SearchVideo(q, searchField, nil, *sortOrder, *offset, *limit, filter)
 	if err != nil {
 		log.Fatalf("Failed to request %v", err)
 	}
 
-	for _, item := range result.Items {
-		fmt.Printf("%v\t%v\t%v\n", item.ContentID, item.StartTime, item.Title)
+	if *jsonFormat {
+		jsonStr, _ := json.MarshalIndent(result.Items, "", "   ")
+		os.Stdout.Write(jsonStr)
+	} else {
+		for _, item := range result.Items {
+			fmt.Printf("%v\t%v\t%v\n", item.ContentID, item.StartTime, item.Title)
+		}
 	}
 }

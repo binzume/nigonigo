@@ -9,7 +9,7 @@ import (
 // doc https://site.nicovideo.jp/search-api-docs/search.html
 
 type SearchResultItem struct {
-	ContentID    string `json:"contentID"`
+	ContentID    string `json:"contentId"`
 	Title        string `json:"title"`
 	ThumbnailURL string `json:"thumbnailUrl"`
 	Duration     int    `json:"lengthSeconds"`
@@ -29,6 +29,7 @@ type SearchField = string
 const (
 	SearchFieldContentID      SearchField = "contentId"
 	SearchFieldTitle          SearchField = "title"
+	SearchFieldLengthSeconds  SearchField = "lengthSeconds"
 	SearchFieldThumbnailURL   SearchField = "thumbnailUrl"
 	SearchFieldViewCounter    SearchField = "viewCounter"
 	SearchFieldMylistCounter  SearchField = "mylistCounter"
@@ -39,7 +40,7 @@ const (
 	SearchFieldLockTagsExact  SearchField = "lockTagsExact"
 	SearchFieldCategoryTags   SearchField = "categoryTags"
 	SearchFieldGenre          SearchField = "genre"
-	SearchFieldGenreKey       SearchField = "genreKey"
+	SearchFieldGenreKey       SearchField = "genre.keyword"
 	SearchFieldStartTime      SearchField = "startTime"
 	SearchFieldUserID         SearchField = "userId"
 	SearchFieldChannelID      SearchField = "channelId"
@@ -54,7 +55,7 @@ var DefaultFields = []SearchField{
 	SearchFieldStartTime,
 	SearchFieldUserID,
 	SearchFieldChannelID,
-	SearchFieldThreadID,
+	SearchFieldLengthSeconds,
 }
 
 type SearchResult struct {

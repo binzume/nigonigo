@@ -71,6 +71,10 @@ func download(client *nigonigo.Client, contentID string, saveThumbnail bool) {
 }
 
 func cmdDownload() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s download [options] contentId\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	id := flag.String("i", "", "mail address")
 	password := flag.String("p", "", "password")
 	accountFile := flag.String("a", "account.json", "account.json")

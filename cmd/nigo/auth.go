@@ -12,13 +12,21 @@ import (
 )
 
 func cmdAuth() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s auth [options]\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	id := flag.String("i", "", "mail address")
 	password := flag.String("p", "", "password")
 	accountFile := flag.String("a", "", "load account.json")
 	sessionFile := flag.String("s", "session.json", "save session.json")
-
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
+
+	if flag.NArg() != 0 {
+		flag.Usage()
+		return
+	}
 
 	client := nigonigo.NewClient()
 
@@ -31,12 +39,17 @@ func cmdAuth() {
 			log.Fatal("login failed")
 		}
 	} else {
+		mail := *id
 		pass := *password
+		if mail == "" {
+			fmt.Print(" Account: ")
+			mail, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+		}
 		if pass == "" {
 			fmt.Print(" Password: ")
 			pass, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 		}
-		err := client.Login(*id, strings.TrimSpace(pass))
+		err := client.Login(strings.TrimSpace(mail), strings.TrimSpace(pass))
 		if err != nil {
 			log.Fatal("login failed")
 		}

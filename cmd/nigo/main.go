@@ -5,24 +5,24 @@ import (
 	"os"
 )
 
-func printUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: %v search|auth|download [params]", os.Args[0])
+func printMainUsage() {
+	fmt.Fprintf(os.Stderr, "Usage: %v search|auth|download [params] [-help]", os.Args[0])
 	os.Exit(1)
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
+		printMainUsage()
 	}
-	cmd := os.Args[1]
 
-	if cmd == "search" {
-		cmdSearch()
-	} else if cmd == "download" {
-		cmdDownload()
-	} else if cmd == "auth" {
+	switch os.Args[1] {
+	case "auth":
 		cmdAuth()
-	} else {
-		printUsage()
+	case "search":
+		cmdSearch()
+	case "download":
+		cmdDownload()
+	default:
+		printMainUsage()
 	}
 }

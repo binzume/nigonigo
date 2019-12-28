@@ -8,7 +8,7 @@ Experimental implementation of [niconico](https://www.nicovideo.jp/) API client 
 
 - Login/Logout
 - Search
-- My List
+- MyList
 - Download video
 
 ## Usage
@@ -37,14 +37,20 @@ func main() {
 
 ### Command line tool:
 
-```bash
-go install github.com/binzume/nigonigo/cmd/nigo
+install:
 
-nigo search -limit 10 -t アニメ
-nigo search -ch 1 ねこ
-nigo auth -i YOUR_MAILADDRESS -p YOUR_PASSWORD -s session.json
+```bash
+go get -u github.com/binzume/nigonigo
+go install github.com/binzume/nigonigo/cmd/nigo
+```
+
+usage:
+
+```bash
+nigo search -limit 10 -t "アニメ"
+nigo search -ch 1 "ねこ"
+nigo auth -i "YOUR_MAILADDRESS" -s session.json
  Password: ********
- Saved: session.json
 nigo download -s session.json sm9
 open sm9.mp4
 ```
