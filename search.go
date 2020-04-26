@@ -20,6 +20,7 @@ type SearchResultItem struct {
 	Description int    `json:"description"`
 	UserID      int    `json:"userId"`
 	ChannelID   int    `json:"channelId"`
+	ThreadID    int    `json:"threadId"`
 	Tags        string `json:"tags"`
 	StartTime   string `json:"startTime"`
 }
@@ -61,7 +62,7 @@ var DefaultFields = []SearchField{
 type SearchResult struct {
 	TotalCount int
 	Offset     int
-	Items      []SearchResultItem
+	Items      []*SearchResultItem
 }
 
 // TODO
@@ -148,7 +149,7 @@ func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort strin
 			ErrorCode    string `json:"errorCode"`
 			ErrorMessage string `json:"errorMessage"`
 		} `json:"meta"`
-		Data []SearchResultItem `json:"data"`
+		Data []*SearchResultItem `json:"data"`
 	}
 	var res searchResponse
 	err = json.Unmarshal(body, &res)
