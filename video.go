@@ -18,6 +18,7 @@ const (
 	errorMessageChannel  = "チャンネル会員専用動画です"
 )
 
+// JSON.parse($("#js-initial-watch-data").dataset.apiData);
 type VideoData struct {
 	Video struct {
 		ContentID      string `json:"id"`
@@ -28,7 +29,8 @@ type VideoData struct {
 		PostedDateTime string `json:"postedDateTime"`
 		ViewCount      int    `json:"viewCount"`
 		MylistCount    int    `json:"mylistCount"`
-		DMC            struct {
+		// Deprecated?
+		DMC struct {
 			Quality struct {
 				Audios []*SourceStream `json:"audios"`
 				Videos []*SourceStream `json:"videos"`
@@ -37,6 +39,7 @@ type VideoData struct {
 			TrackingID string                 `json:"tracking_id"`
 			Encryption map[string]interface{} `json:"encryption"`
 		} `json:"dmcInfo"`
+		// Deprecated?
 		Smile struct {
 			URL              string   `json:"url"`
 			CurrentQualityID string   `json:"currentQualityId"`
@@ -44,6 +47,20 @@ type VideoData struct {
 			IsSlowLine       bool     `json:"isSlowLine"`
 		} `json:"smileInfo"`
 	} `json:"video"`
+	// temp1.media.delivery.movie.audios
+	Media struct {
+		Delivery struct {
+			Movie struct {
+				Audios  []*SourceStream2       `json:"audios"`
+				Videos  []*SourceStream2       `json:"videos"`
+				Session map[string]interface{} `json:"session"`
+			} `json:"movie"`
+			Encryption map[string]interface{} `json:"encryption"`
+			TrackingID string                 `json:"trackingId"`
+		} `json:"delivery"`
+		DeliveryLegacy struct {
+		} `json:"deliveryLegacy"`
+	} `json:"media"`
 	Thread  map[string]interface{} `json:"thread"`
 	Owner   map[string]interface{} `json:"owner"`
 	Channel map[string]interface{} `json:"channel"`
@@ -61,6 +78,29 @@ type SourceStream struct {
 	} `json:"resolution"`
 }
 
+type SourceStream2 struct {
+	ID        string `json:"id"`
+	Available bool   `json:"isAvailable"`
+	Metadata  struct {
+		SamplingRate int `json:"samplingRate"`
+		Bitrate      int `json:"bitrate"`
+		Resolution   struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		} `json:"resolution"`
+	} `json:"metadata"`
+}
+
+func (s *SourceStream2) SourceStream() *SourceStream {
+	return &SourceStream{
+		ID:           s.ID,
+		Available:    s.Available,
+		Bitrate:      s.Metadata.Bitrate,
+		SamplingRate: s.Metadata.SamplingRate,
+		Resolution:   s.Metadata.Resolution,
+	}
+}
+
 func (v *VideoData) IsDMC() bool {
 	return v.GetAvailableAudio() != nil || v.GetAvailableVideo() != nil
 }
@@ -73,12 +113,38 @@ func (v *VideoData) IsNeedPayment() bool {
 	return v.Context["isNeedPayment"] == true
 }
 
+func (v *VideoData) GetSessionData() map[string]interface{} {
+	if len(v.Media.Delivery.Movie.Session) > 0 {
+		return v.Media.Delivery.Movie.Session
+	}
+	return v.Video.DMC.SessionAPI
+}
+
+func (v *VideoData) GetEncryption() map[string]interface{} {
+	if len(v.Media.Delivery.Encryption) > 0 {
+		return map[string]interface{}{
+			"hls_encryption_v1": map[string]interface{}{
+				"key_uri":       v.Media.Delivery.Encryption["keyUri"],
+				"encrypted_key": v.Media.Delivery.Encryption["encryptedKey"],
+			},
+		}
+	}
+	return v.Video.DMC.Encryption
+}
+
+func (v *VideoData) concatStreams(srcs []*SourceStream, stream2 []*SourceStream2) []*SourceStream {
+	for _, s := range stream2 {
+		srcs = append(srcs, s.SourceStream())
+	}
+	return srcs
+}
+
 func (v *VideoData) GetAvailableAudio() *SourceStream {
-	return v.GetAvailableSource(v.Video.DMC.Quality.Audios)
+	return v.GetAvailableSource(v.concatStreams(v.Video.DMC.Quality.Audios, v.Media.Delivery.Movie.Audios))
 }
 
 func (v *VideoData) GetAvailableVideo() *SourceStream {
-	return v.GetAvailableSource(v.Video.DMC.Quality.Videos)
+	return v.GetAvailableSource(v.concatStreams(v.Video.DMC.Quality.Videos, v.Media.Delivery.Movie.Videos))
 }
 
 func (v *VideoData) SmileFileExtension() string {
@@ -157,7 +223,7 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 	}
 
 	transferPreset := ""
-	transferPresets := data.Video.DMC.SessionAPI["transfer_presets"].([]interface{})
+	transferPresets := data.GetSessionData()["transferPresets"].([]interface{})
 	if len(transferPresets) > 0 {
 		transferPreset = transferPresets[0].(string)
 	}
@@ -171,7 +237,7 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 		},
 	}
 	httpAvailable := false
-	for _, proto := range data.Video.DMC.SessionAPI["protocols"].([]interface{}) {
+	for _, proto := range data.GetSessionData()["protocols"].([]interface{}) {
 		if proto == "http" {
 			httpAvailable = true
 		}
@@ -183,15 +249,15 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 				"use_ssl":             "yes",
 				"segment_duration":    6000,
 				"transfer_preset":     transferPreset,
-				"encryption":          data.Video.DMC.Encryption,
+				"encryption":          data.GetEncryption(),
 			},
 		}
 	}
 
 	var reqsession = jsonObject{
 		"session": jsonObject{
-			"recipe_id":         data.Video.DMC.SessionAPI["recipe_id"],
-			"content_id":        data.Video.DMC.SessionAPI["content_id"],
+			"recipe_id":         data.GetSessionData()["recipeId"],
+			"content_id":        data.GetSessionData()["contentId"],
 			"content_type":      "movie",
 			"timing_constraint": "unlimited",
 			"content_src_id_sets": jsonArray{
@@ -216,36 +282,35 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 			},
 			"keep_method": jsonObject{
 				"heartbeat": jsonObject{
-					"lifetime": data.Video.DMC.SessionAPI["heartbeat_lifetime"],
+					"lifetime": data.GetSessionData()["heartbeatLifetime"],
 				},
 			},
 			"session_operation_auth": jsonObject{
 				"session_operation_auth_by_signature": jsonObject{
-					"token":     data.Video.DMC.SessionAPI["token"],
-					"signature": data.Video.DMC.SessionAPI["signature"],
+					"token":     data.GetSessionData()["token"],
+					"signature": data.GetSessionData()["signature"],
 				},
 			},
 			"content_auth": jsonObject{
 				"auth_type":           "ht2",
 				"service_id":          "nicovideo",
-				"service_user_id":     data.Video.DMC.SessionAPI["service_user_id"],
-				"content_key_timeout": data.Video.DMC.SessionAPI["content_key_timeout"],
+				"service_user_id":     data.GetSessionData()["serviceUserId"],
+				"content_key_timeout": data.GetSessionData()["contentKeyTimeout"],
 			},
 			"client_info": jsonObject{
-				"player_id": data.Video.DMC.SessionAPI["player_id"],
+				"player_id": data.GetSessionData()["playerId"],
 			},
-			"priority": data.Video.DMC.SessionAPI["priority"],
+			"priority": data.GetSessionData()["priority"],
 		},
 	}
 	return reqsession, nil
 }
 
 func (c *Client) prepareLicense(data *VideoData) error {
-	if data.Video.DMC.Encryption["hls_encryption_v1"] != nil {
+	if len(data.GetEncryption()) > 0 {
 		// Prepare encryption key.
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
-		Logger.Println(data.Video.DMC.Encryption)
-		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID)
+		url := nvApiUrl + "2ab0cbaa/watch?t=" + url.QueryEscape(data.Video.DMC.TrackingID+data.Media.Delivery.TrackingID)
 		req, err := newGetReq(url, nil)
 		if err != nil {
 			return err
@@ -288,7 +353,7 @@ func (c *Client) CreateDMCSessionByVideoData(data *VideoData) (*DMCSession, erro
 	if err != nil {
 		return nil, err
 	}
-	sessionApiURL := data.Video.DMC.SessionAPI["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
+	sessionApiURL := data.GetSessionData()["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
 	return c.CreateDMCSession(reqsession, sessionApiURL)
 }
 
