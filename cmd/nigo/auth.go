@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/binzume/nigonigo"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func authLogin(client *nigonigo.Client, sessionFile, accountFile, id, password string) error {
@@ -30,7 +31,9 @@ func authLogin(client *nigonigo.Client, sessionFile, accountFile, id, password s
 		}
 		if password == "" {
 			fmt.Print(" Password: ")
-			password, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+			pwd, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
+			password = string(pwd)
+			fmt.Println("")
 		}
 		return client.Login(strings.TrimSpace(id), strings.TrimSpace(password))
 	}
