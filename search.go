@@ -54,8 +54,8 @@ var DefaultFields = []SearchField{
 	SearchFieldThumbnailURL,
 	SearchFieldTags,
 	SearchFieldStartTime,
-	SearchFieldUserID,
-	SearchFieldChannelID,
+	// SearchFieldUserID,
+	// SearchFieldChannelID,
 	SearchFieldLengthSeconds,
 }
 
@@ -74,11 +74,11 @@ type simpleFilter struct {
 	Value string      `json:"value"`
 }
 type rangeFilter struct {
-	Type  string      `json:"type"`
-	Field SearchField `json:"field"`
-	From  string      `json:"from,omitempty"`
-	To    string      `json:"to,omitempty"`
-	IncludeUpper bool `json:"include_upper"`
+	Type         string      `json:"type"`
+	Field        SearchField `json:"field"`
+	From         string      `json:"from,omitempty"`
+	To           string      `json:"to,omitempty"`
+	IncludeUpper bool        `json:"include_upper"`
 }
 
 type groupFilter struct {
