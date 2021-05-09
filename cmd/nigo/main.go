@@ -10,7 +10,7 @@ import (
 var defaultSessionFilePath = ".nigo_session.json"
 
 func printMainUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download [params] [-help]", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download [params] [-help]\n", os.Args[0])
 	os.Exit(1)
 }
 

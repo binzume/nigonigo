@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/binzume/nigonigo"
 )
@@ -19,10 +18,10 @@ type ByteCounter struct {
 
 func (w *ByteCounter) Write(p []byte) (int, error) {
 	if w.Count != 0 {
-		fmt.Fprint(os.Stderr, strings.Repeat("\b", 80))
+		fmt.Fprint(os.Stderr, "\r")
 	}
 	w.Count += int64(len(p))
-	fmt.Fprintf(os.Stderr, "Download %v MiB. ", w.Count/1024/1024)
+	fmt.Fprintf(os.Stderr, "Download %v MiB", w.Count/1024/1024)
 	return len(p), nil
 }
 
