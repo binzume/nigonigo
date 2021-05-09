@@ -40,8 +40,7 @@ func main() {
 install:
 
 ```bash
-go get -u github.com/binzume/nigonigo
-go install github.com/binzume/nigonigo/cmd/nigo
+go install github.com/binzume/nigonigo/cmd/nigo@latest
 ```
 
 usage:
