@@ -47,7 +47,8 @@ usage:
 
 ```bash
 nigo search -limit 10 -t "アニメ"
-nigo search -ch 1 "ねこ"
+nigo search -sort "-viewCounter" -limit 3  -t "MMD 初音ミク" "あ"
+nigo search "ねこ"
 nigo auth -i "YOUR_MAILADDRESS"
  Password: ********
 nigo download sm9

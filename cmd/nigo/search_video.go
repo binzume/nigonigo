@@ -21,9 +21,10 @@ func cmdSearch() {
 	jsonFormat := flag.Bool("json", false, "json output")
 	sortOrder := flag.String("sort", "-startTime", "sort order")
 	filterGenre := flag.String("genre", "", "filter by genre")
-	filterUserID := flag.String("user", "", "filter by userId")
-	filterChannelID := flag.String("ch", "", "filter by channelId")
+	filterUserID := flag.String("user", "", "filter by userId (obsoleted)")
+	filterChannelID := flag.String("ch", "", "filter by channelId (obsoleted)")
 	filterViewCount := flag.String("viewCount", "0", "filter by viewCounter")
+	chOnly := flag.Bool("chOnly", false, "channel only")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
@@ -31,9 +32,16 @@ func cmdSearch() {
 		flag.Usage()
 		return
 	}
-	q := flag.Arg(0)
 
 	client := nigonigo.NewClient()
+
+	req := &nigonigo.SearchRequest{
+		Query:   flag.Arg(0),
+		Sort:    *sortOrder,
+		Offset:  *offset,
+		Limit:   *limit,
+		Targets: []nigonigo.SearchField{"description,title"},
+	}
 
 	var filters []nigonigo.SearchFilter
 	if *filterGenre != "" {
@@ -49,24 +57,34 @@ func cmdSearch() {
 		filters = append(filters, nigonigo.RangeFilter(nigonigo.SearchFieldViewCounter, *filterViewCount, "", true))
 	}
 
-	var filter nigonigo.SearchFilter
-	if len(filters) == 1 {
-		filter = filters[0]
-	} else if len(filters) > 1 {
-		filter = nigonigo.AndFilter(filters)
-	}
-
-	var searchField []nigonigo.SearchField
 	if *tag != "" {
-		searchField = []nigonigo.SearchField{"tagsExact,categoryTags"}
-		q = *tag
-	} else {
-		searchField = []nigonigo.SearchField{"description,title"}
+		if req.Query == "" {
+			req.Targets = []nigonigo.SearchField{"tagsExact,categoryTags"}
+			req.Query = *tag
+		} else {
+			filters = append(filters, nigonigo.EqualFilter(nigonigo.SearchFieldTagsExact, *tag))
+		}
 	}
 
-	result, err := client.SearchVideo(q, searchField, nil, *sortOrder, *offset, *limit, filter)
+	if len(filters) == 1 {
+		req.Filter = filters[0]
+	} else if len(filters) > 1 {
+		req.Filter = nigonigo.AndFilter(filters)
+	}
+
+	result, err := client.SearchVideo2(req)
 	if err != nil {
 		log.Fatalf("Failed to request %v", err)
+	}
+
+	if *chOnly {
+		r := []*nigonigo.SearchResultItem{}
+		for _, v := range result.Items {
+			if v.ChannelID != 0 {
+				r = append(r, v)
+			}
+		}
+		result.Items = r
 	}
 
 	if *jsonFormat {
