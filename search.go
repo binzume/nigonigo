@@ -8,6 +8,16 @@ import (
 
 // doc https://site.nicovideo.jp/search-api-docs/search.html
 
+type SearchRequest struct {
+	Query   string
+	Offset  int
+	Limit   int
+	Sort    string
+	Targets []SearchField
+	Filter  SearchFilter
+	Fields  []SearchField
+}
+
 type SearchResultItem struct {
 	ContentID    string `json:"contentId"`
 	Title        string `json:"title"`
@@ -54,8 +64,8 @@ var DefaultFields = []SearchField{
 	SearchFieldThumbnailURL,
 	SearchFieldTags,
 	SearchFieldStartTime,
-	// SearchFieldUserID,
-	// SearchFieldChannelID,
+	SearchFieldUserID,
+	SearchFieldChannelID,
 	SearchFieldLengthSeconds,
 }
 
@@ -111,24 +121,39 @@ func (c *Client) SearchByTag(tag string, offset, limit int) (*SearchResult, erro
 }
 
 func (c *Client) SearchByKeyword(s string, offset, limit int) (*SearchResult, error) {
-	return c.SearchVideo(s, []SearchField{"description,title"}, nil, "-startTime", offset, limit, nil)
+	return c.SearchVideo(s, nil, nil, "-startTime", offset, limit, nil)
 }
 
 func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort string, offset, limit int, filter SearchFilter) (*SearchResult, error) {
-	if fields == nil {
-		fields = DefaultFields
+	return c.SearchVideo2(&SearchRequest{
+		Query:   q,
+		Offset:  offset,
+		Limit:   limit,
+		Sort:    sort,
+		Filter:  filter,
+		Targets: targets,
+		Fields:  fields,
+	})
+}
+
+func (c *Client) SearchVideo2(req *SearchRequest) (*SearchResult, error) {
+	if req.Fields == nil {
+		req.Fields = DefaultFields
+	}
+	if req.Targets == nil {
+		req.Fields = []SearchField{"description,title"}
 	}
 	params := map[string]string{
-		"q":        q,
-		"targets":  strings.Join(targets, ","),
-		"fields":   strings.Join(fields, ","),
-		"_sort":    sort,
-		"_offset":  fmt.Sprint(offset),
-		"_limit":   fmt.Sprint(limit),
+		"q":        req.Query,
+		"targets":  strings.Join(req.Targets, ","),
+		"fields":   strings.Join(req.Fields, ","),
+		"_sort":    req.Sort,
+		"_offset":  fmt.Sprint(req.Offset),
+		"_limit":   fmt.Sprint(req.Limit),
 		"_context": "nigonigo",
 	}
-	if filter != nil {
-		encoded, err := json.Marshal(filter)
+	if req.Filter != nil {
+		encoded, err := json.Marshal(req.Filter)
 		if err != nil {
 			return nil, err
 		}
@@ -160,5 +185,5 @@ func (c *Client) SearchVideo(q string, targets, fields []SearchField, sort strin
 		return nil, fmt.Errorf("%v code:%v", res.Meta.ErrorMessage, res.Meta.ErrorCode)
 	}
 
-	return &SearchResult{TotalCount: res.Meta.TotalCount, Offset: offset, Items: res.Data}, nil
+	return &SearchResult{TotalCount: res.Meta.TotalCount, Offset: req.Offset, Items: res.Data}, nil
 }
