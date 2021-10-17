@@ -33,6 +33,9 @@ func TestDownload(t *testing.T) {
 }
 
 func TestDownloadFromSmile(t *testing.T) {
+	t.Log("smilevideo no longer available")
+	t.SkipNow()
+
 	client := newClientForTest(t, false)
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)

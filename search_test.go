@@ -5,7 +5,6 @@ import (
 )
 
 var testTag = "MMD"
-var testChannelID = "2632720"
 
 func TestSearchByTag(t *testing.T) {
 	client := newClientForTest(t, false)
@@ -25,10 +24,10 @@ func TestSearchByTag(t *testing.T) {
 func TestSearchVideo(t *testing.T) {
 	client := newClientForTest(t, false)
 
-	filter := EqualFilter("channelId", testChannelID)
+	filter := RangeFilter("viewCounter", "1000", "", false) // > 1000
 
 	q := "アニメ OR ゲーム OR 料理" // TODO
-	result, err := client.SearchVideo(q, []SearchField{"categoryTags"}, DefaultFields, "-startTime", 0, 1, filter)
+	result, err := client.SearchVideo(q, []SearchField{SearchFieldCategoryTags}, DefaultFields, "-startTime", 0, 1, filter)
 
 	if err != nil {
 		t.Fatalf("Failed to request %v", err)
