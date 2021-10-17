@@ -175,6 +175,18 @@ func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 	return ret
 }
 
+type VideoSession interface {
+	FileExtension() string
+}
+
+type SmileSession struct {
+	VideoData *VideoData
+}
+
+func (s *SmileSession) FileExtension() string {
+	return s.VideoData.SmileFileExtension()
+}
+
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 	res, err := getContent(c.HttpClient, watchUrl+contentId, nil)
 	if err != nil {
@@ -203,6 +215,27 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 		return nil, err
 	}
 	return &data, nil
+}
+
+func (c *Client) CreateVideoSession(contentID string) (VideoSession, error) {
+	data, err := c.GetVideoData(contentID)
+	if err != nil {
+		return nil, err
+	}
+	if data.IsDMC() {
+		return c.CreateDMCSessionByVideoData(data)
+	} else if data.IsSmile() {
+		return c.CreateSmileSessionByVideoData(data)
+	}
+	return nil, fmt.Errorf("No available video source")
+}
+
+func (c *Client) Download(ctx context.Context, session VideoSession, w io.Writer) error {
+	if dmcSession, ok := session.(*DMCSession); ok {
+		return c.DownloadFromDMC(ctx, dmcSession, w)
+	}
+	smileSession, _ := session.(*SmileSession)
+	return c.DownloadFromSmile(ctx, smileSession.VideoData, w)
 }
 
 type jsonObject map[string]interface{}
@@ -325,7 +358,6 @@ func (c *Client) prepareLicense(data *VideoData) error {
 	}
 	return nil
 }
-
 func (c *Client) CreateDMCSessionById(contentID string) (*DMCSession, error) {
 	data, err := c.GetVideoData(contentID)
 	if err != nil {
@@ -355,6 +387,10 @@ func (c *Client) CreateDMCSessionByVideoData(data *VideoData) (*DMCSession, erro
 	}
 	sessionApiURL := data.GetSessionData()["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
 	return c.CreateDMCSession(reqsession, sessionApiURL)
+}
+
+func (c *Client) CreateSmileSessionByVideoData(data *VideoData) (*SmileSession, error) {
+	return &SmileSession{VideoData: data}, nil
 }
 
 func (c *Client) DownloadFromSmile(ctx context.Context, data *VideoData, w io.Writer) error {

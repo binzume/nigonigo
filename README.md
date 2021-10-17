@@ -1,6 +1,7 @@
 # [WIP] niconico API client for Golang
 [![Build Status](https://travis-ci.com/binzume/nigonigo.svg?branch=master)](https://travis-ci.com/binzume/nigonigo)
-[![GoDoc](https://godoc.org/github.com/binzume/nigonigo?status.svg)](https://godoc.org/github.com/binzume/nigonigo) [![license](https://img.shields.io/badge/license-MIT-4183c4.svg)](https://github.com/binzume/nigonigo/blob/master/LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/binzume/nigonigo.svg)](https://pkg.go.dev/github.com/binzume/nigonigo)
+[![license](https://img.shields.io/badge/license-MIT-4183c4.svg)](https://github.com/binzume/nigonigo/blob/master/LICENSE)
 
 Experimental implementation of [niconico](https://www.nicovideo.jp/) API client for Golang.
 
@@ -20,7 +21,7 @@ func main() {
 	client := nigonigo.NewClient()
 
 	contentID := "sm9"
-	session, err := client.CreateDMCSessionById(contentID)
+	session, err := client.CreateVideoSession(contentID)
 	if err != nil {
 		log.Fatalf("Failed to create session: %v", err)
 	}

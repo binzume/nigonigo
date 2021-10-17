@@ -17,7 +17,7 @@ func TestDownload(t *testing.T) {
 	defer cancel()
 
 	var contentID = testVid
-	session, err := client.CreateDMCSessionById(contentID)
+	session, err := client.CreateVideoSession(contentID)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
@@ -32,31 +32,6 @@ func TestDownload(t *testing.T) {
 	}
 }
 
-func TestDownloadFromSmile(t *testing.T) {
-	t.Log("smilevideo no longer available")
-	t.SkipNow()
-
-	client := newClientForTest(t, false)
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
-	defer cancel()
-
-	var contentID = testVid
-	video, err := client.GetVideoData(contentID)
-	if err != nil {
-		t.Fatalf("Failed to create session: %v", err)
-	}
-
-	out, _ := os.Create(contentID + "." + video.SmileFileExtension())
-	defer out.Close()
-	err = client.DownloadFromSmile(ctx, video, out)
-	if err == context.DeadlineExceeded {
-		t.Logf("Download stoppped")
-	} else if err != nil {
-		t.Fatalf("Failed to download: %v", err)
-	}
-}
-
 func TestDownloadLoggedIn(t *testing.T) {
 	client := newClientForTest(t, true)
 	ctx := context.Background()
@@ -64,7 +39,7 @@ func TestDownloadLoggedIn(t *testing.T) {
 	defer cancel()
 
 	contantID := testVid
-	session, err := client.CreateDMCSessionById(contantID)
+	session, err := client.CreateVideoSession(contantID)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}

@@ -169,7 +169,7 @@ func (c *Client) startHeartbeat(ctx context.Context, session *DMCSession, errorL
 	}()
 }
 
-func (c *Client) Download(ctx context.Context, session *DMCSession, w io.Writer) error {
+func (c *Client) DownloadFromDMC(ctx context.Context, session *DMCSession, w io.Writer) error {
 	if session.Protocol.Name != "http" {
 		return fmt.Errorf("unsupported protocol : %v", session.Protocol.Name)
 	}
