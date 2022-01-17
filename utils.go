@@ -61,11 +61,15 @@ func getContent(client *http.Client, url string, params map[string]string) ([]by
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("X-Frontend-Id", "6") // FIXME
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode == 401 {
+		return nil, AuthenticationRequired
+	}
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("invalid status code :%v", res.StatusCode)
 	}

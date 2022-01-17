@@ -57,7 +57,7 @@ type MyListItem struct {
 }
 
 func (c *Client) GetMyLists() ([]*MyList, error) {
-	body, err := getContent(c.HttpClient, topUrl+"api/mylistgroup/list", nil)
+	body, err := getContent(c.HttpClient, nvApiUrl+"users/me/mylists?sampleItemCount=0", nil)
 	if err != nil {
 		return nil, err
 	}
