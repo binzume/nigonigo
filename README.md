@@ -1,5 +1,5 @@
 # [WIP] niconico API client for Golang
-[![Build Status](https://travis-ci.com/binzume/nigonigo.svg?branch=master)](https://travis-ci.com/binzume/nigonigo)
+[![Build Status](https://github.com/binzume/nigonigo/actions/workflows/test.yaml/badge.svg)](https://github.com/binzume/nigonigo/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/binzume/nigonigo.svg)](https://pkg.go.dev/github.com/binzume/nigonigo)
 [![license](https://img.shields.io/badge/license-MIT-4183c4.svg)](https://github.com/binzume/nigonigo/blob/master/LICENSE)
 
