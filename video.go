@@ -18,6 +18,17 @@ const (
 	errorMessageChannel  = "チャンネル会員専用動画です"
 )
 
+// JSON.parse($("[name=server-response]").content);
+type VideoResponse struct {
+	Meta struct {
+		Status int    `json:"status"`
+		Code   string `json:"code"`
+	} `json:"meta"`
+	Data struct {
+		Res *VideoData `json:"response"`
+	} `json:"data"`
+}
+
 // JSON.parse($("#js-initial-watch-data").dataset.apiData);
 type VideoData struct {
 	Video struct {
@@ -60,11 +71,30 @@ type VideoData struct {
 		} `json:"delivery"`
 		DeliveryLegacy struct {
 		} `json:"deliveryLegacy"`
+
+		// v2024
+		Domand *struct {
+			Audios []*SourceStream3 `json:"audios"`
+			Videos []*SourceStream3 `json:"videos"`
+
+			IsStoryboardAvailable bool   `json:"isStoryboardAvailable"`
+			AccessRightKey        string `json:"accessRightKey"`
+		} `json:"domand"`
 	} `json:"media"`
 	Thread  map[string]interface{} `json:"thread"`
 	Owner   map[string]interface{} `json:"owner"`
 	Channel map[string]interface{} `json:"channel"`
 	Context map[string]interface{} `json:"context"`
+
+	// v2024
+	Client struct {
+		NicoSID      string `json:"nicosid"`
+		WatchId      string `json:"watchId"`
+		WatchTrackId string `json:"watchTrackId"`
+	} `json:"client"`
+	Payment struct {
+		IsPPV bool `json:"isPpv"`
+	} `json:"payment"`
 }
 
 type SourceStream struct {
@@ -91,6 +121,23 @@ type SourceStream2 struct {
 	} `json:"metadata"`
 }
 
+type SourceStream3 struct {
+	ID           string `json:"id"`
+	Available    bool   `json:"isAvailable"`
+	Label        string `json:"label"`
+	Bitrate      int    `json:"bitRate"`
+	QualityLevel int    `json:"qualityLevel"`
+
+	// Video
+	Width                               int `json:"width"`
+	Height                              int `json:"height"`
+	RecommendedHighestAudioQualityLevel int `json:"recommendedHighestAudioQualityLevel"`
+
+	// Audio
+	SamplingRate       int   `json:"samplingRate"`
+	LoudnessCollection []any `json:"loudnessCollection"`
+}
+
 func (s *SourceStream2) SourceStream() *SourceStream {
 	return &SourceStream{
 		ID:           s.ID,
@@ -107,6 +154,10 @@ func (v *VideoData) IsDMC() bool {
 
 func (v *VideoData) IsSmile() bool {
 	return v.Video.Smile.URL != ""
+}
+
+func (v *VideoData) IsDomand() bool {
+	return v.Media.Domand != nil
 }
 
 func (v *VideoData) IsNeedPayment() bool {
@@ -197,6 +248,22 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 	re := regexp.MustCompile(`data-api-data="([^"]+)"`)
 	match := re.FindStringSubmatch(body)
 	if match == nil {
+		// 2024
+		match = regexp.MustCompile(`<meta name="server-response" content="([^"]+)"`).FindStringSubmatch(body)
+		if match != nil {
+			jsonString := html.UnescapeString(match[1])
+			var data VideoResponse
+			err = json.Unmarshal([]byte(jsonString), &data)
+			if err != nil {
+				return nil, err
+			}
+			if data.Data.Res == nil {
+				return nil, errors.New("invalid server-response")
+			}
+			return data.Data.Res, nil
+		}
+	}
+	if match == nil {
 		if strings.Contains(body, errorMessageNotFound) {
 			return nil, errors.New("video not found")
 		}
@@ -222,20 +289,31 @@ func (c *Client) CreateVideoSession(contentID string) (VideoSession, error) {
 	if err != nil {
 		return nil, err
 	}
+	return c.CreateVideoSessionFromVideoData(data)
+}
+
+func (c *Client) CreateVideoSessionFromVideoData(data *VideoData) (VideoSession, error) {
 	if data.IsDMC() {
 		return c.CreateDMCSessionByVideoData(data)
 	} else if data.IsSmile() {
 		return c.CreateSmileSessionByVideoData(data)
+	} else if data.IsDomand() {
+		return c.CreateDomandSessionByVideoData(data)
 	}
-	return nil, fmt.Errorf("No available video source")
+	return nil, errors.New("no available video source")
 }
 
 func (c *Client) Download(ctx context.Context, session VideoSession, w io.Writer) error {
 	if dmcSession, ok := session.(*DMCSession); ok {
 		return c.DownloadFromDMC(ctx, dmcSession, w)
 	}
-	smileSession, _ := session.(*SmileSession)
-	return c.DownloadFromSmile(ctx, smileSession.VideoData, w)
+	if smileSession, ok := session.(*SmileSession); ok {
+		return c.DownloadFromSmile(ctx, smileSession.VideoData, w)
+	}
+	if domandSession, ok := session.(*DomandSession); ok {
+		return domandSession.Download(ctx, c.HttpClient, w, "")
+	}
+	return errors.New("unsupporeed session")
 }
 
 type jsonObject map[string]interface{}

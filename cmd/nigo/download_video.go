@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/binzume/nigonigo"
 )
@@ -54,9 +55,21 @@ func download(client *nigonigo.Client, contentID string, saveThumbnail bool) {
 		}
 	}
 
-	session, err := client.CreateDMCSessionByVideoData(video)
+	session, err := client.CreateVideoSessionFromVideoData(video)
 	if err != nil {
 		log.Fatalf("Failed to create session: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	if domandSession, ok := session.(*nigonigo.DomandSession); ok {
+		for _, s := range domandSession.SubStreams() {
+			wg.Add(1)
+			go func(id, ext string) {
+				defer wg.Done()
+				out, _ := os.Create(contentID + "." + ext)
+				_ = domandSession.Download(context.Background(), client.HttpClient, out, id)
+			}(s[0], s[1])
+		}
 	}
 
 	log.Printf("Start download %v", contentID)
@@ -66,6 +79,7 @@ func download(client *nigonigo.Client, contentID string, saveThumbnail bool) {
 	if err != nil {
 		log.Fatalf("Failed to download: %v", err)
 	}
+	wg.Wait()
 	log.Println("ok")
 }
 

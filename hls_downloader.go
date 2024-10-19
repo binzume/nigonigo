@@ -1,13 +1,13 @@
 package nigonigo
 
 import (
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -17,9 +17,10 @@ import (
 )
 
 type HLSDownloader struct {
-	HttpClient *http.Client
-	iv         []byte
-	key        []byte
+	HttpClient    *http.Client
+	TargetGroupID string
+	iv            []byte
+	key           []byte
 }
 
 func NewHLSDownloader(client *http.Client) *HLSDownloader {
@@ -29,21 +30,27 @@ func NewHLSDownloader(client *http.Client) *HLSDownloader {
 	return &HLSDownloader{HttpClient: client}
 }
 
-func (c *HLSDownloader) getBytes(ctx context.Context, url string) ([]byte, error) {
+func (c *HLSDownloader) httpGet(ctx context.Context, url string) ([]byte, http.Header, error) {
 	req, err := newGetReq(url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	req = req.WithContext(ctx)
 	res, err := c.HttpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, nil, fmt.Errorf("invalid status code :%v", res.StatusCode)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		err = fmt.Errorf("incalid status code :%v", res.StatusCode)
-	}
-	return ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
+	return body, res.Header, err
+}
+
+func (c *HLSDownloader) getBytes(ctx context.Context, url string) ([]byte, error) {
+	body, _, err := c.httpGet(ctx, url)
+	return body, err
 }
 
 func relative(base, relative string) string {
@@ -75,7 +82,7 @@ func (c *HLSDownloader) GetSegment(ctx context.Context, url string, w io.Writer)
 
 func (c *HLSDownloader) GetSegment2(ctx context.Context, url string, w io.Writer, key, iv []byte) error {
 	// TODO io.Reader/Writer
-	data, err := c.getBytes(ctx, url)
+	data, header, err := c.httpGet(ctx, url)
 	if err != nil {
 		return err
 	}
@@ -92,6 +99,18 @@ func (c *HLSDownloader) GetSegment2(ctx context.Context, url string, w io.Writer
 	cbc := cipher.NewCBCDecrypter(cipherBlock, iv)
 	cbc.CryptBlocks(out, data)
 
+	// Remove padding
+	if strings.Contains(header.Get("content-type"), "/mp4") {
+		p := bytes.Index(out, []byte("mdat"))
+		if p >= 4 {
+			sz := (int(out[p-4]) << 24) | (int(out[p-3]) << 16) | (int(out[p-2]) << 8) | int(out[p-1])
+			sz = p - 4 + sz
+			if sz < len(out) && sz >= len(data)-cipherBlock.BlockSize() {
+				out = out[:sz]
+			}
+		}
+	}
+
 	_, err = w.Write(out)
 	return err
 }
@@ -101,6 +120,7 @@ type hlsPlaylist struct {
 	SubPlaylists  []string
 	Lines         []string
 	Endlist       bool
+	Medias        []map[string]string
 }
 
 func parseHLSPlaylist(playlist []byte) *hlsPlaylist {
@@ -114,6 +134,13 @@ func parseHLSPlaylist(playlist []byte) *hlsPlaylist {
 				lines[i+1] = "" // avoid download as .ts
 			} else if tag[0] == "#EXT-X-MEDIA-SEQUENCE" && len(tag) >= 2 {
 				list.MediaSequence, _ = strconv.Atoi(tag[1])
+			} else if tag[0] == "#EXT-X-MEDIA" && len(tag) >= 2 {
+				m := map[string]string{}
+				for _, s := range strings.Split(tag[1], ",") {
+					kv := strings.SplitN(s, "=", 2)
+					m[kv[0]] = strings.Trim(kv[1], "\"")
+				}
+				list.Medias = append(list.Medias, m)
 			} else if tag[0] == "#EXT-X-ENDLIST" {
 				list.Endlist = true
 			}
@@ -128,6 +155,13 @@ func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.W
 		return err
 	}
 	list := parseHLSPlaylist(res)
+	if c.TargetGroupID != "" && len(list.Medias) > 0 {
+		for _, m := range list.Medias {
+			if m["GROUP-ID"] == c.TargetGroupID {
+				return c.downloadInternal(ctx, relative(url, m["URI"]), w, start)
+			}
+		}
+	}
 	if len(list.SubPlaylists) > 0 {
 		// TODO: select better stream.
 		return c.downloadInternal(ctx, relative(url, list.SubPlaylists[0]), w, start)
@@ -135,6 +169,7 @@ func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.W
 
 	reqInterval := 100 * time.Millisecond
 	re := regexp.MustCompile(`^#EXT-X-KEY:METHOD=AES-128,URI="([^"]+)",IV=0x([0-9a-fA-F]+)`)
+	mapRe := regexp.MustCompile(`^#EXT-X-MAP:URI="([^"]+)"`)
 	mediaSeq := list.MediaSequence
 	for _, line := range list.Lines {
 		select {
@@ -157,6 +192,14 @@ func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.W
 				return err
 			}
 		}
+		match = mapRe.FindStringSubmatch(line)
+		if match != nil {
+			err = c.GetSegment(ctx, relative(url, match[1]), w)
+			if err != nil {
+				return err
+			}
+		}
+
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
 			mediaSeq++
 			if mediaSeq <= start {
