@@ -15,6 +15,7 @@ const (
 	watchUrl      = "https://www.nicovideo.jp/watch/"
 	httpOrigin    = "https://www.nicovideo.jp"
 	nvApiUrl      = "https://nvapi.nicovideo.jp/v1/"
+	seriesUrl     = "https://www.nicovideo.jp/series/"
 )
 
 type Client struct {

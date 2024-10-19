@@ -24,6 +24,7 @@ func cmdSearch() {
 	filterUserID := flag.String("user", "", "filter by userId (obsoleted)")
 	filterChannelID := flag.String("ch", "", "filter by channelId (obsoleted)")
 	filterViewCount := flag.String("viewCount", "0", "filter by viewCounter")
+	series := flag.Bool("series", false, "series id")
 	chOnly := flag.Bool("chOnly", false, "channel only")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
@@ -72,7 +73,13 @@ func cmdSearch() {
 		req.Filter = nigonigo.AndFilter(filters)
 	}
 
-	result, err := client.SearchVideo2(req)
+	var err error
+	var result *nigonigo.SearchResult
+	if *series {
+		result, err = client.FindSeriesVideos(req.Query)
+	} else {
+		result, err = client.SearchVideo2(req)
+	}
 	if err != nil {
 		log.Fatalf("Failed to request %v", err)
 	}
