@@ -181,8 +181,6 @@ func (c *HLSDownloader) downloadInternal(ctx context.Context, url string, w io.W
 		if match != nil {
 			keyURL := match[1]
 			ivHex := match[2]
-			Logger.Println(keyURL)
-			Logger.Println(ivHex)
 			c.iv, _ = hex.DecodeString(ivHex)
 			c.key, err = c.getBytes(ctx, keyURL)
 			if len(c.key) != 16 {

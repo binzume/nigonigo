@@ -121,6 +121,16 @@ type SourceStream2 struct {
 	} `json:"metadata"`
 }
 
+func (s *SourceStream2) SourceStream() *SourceStream {
+	return &SourceStream{
+		ID:           s.ID,
+		Available:    s.Available,
+		Bitrate:      s.Metadata.Bitrate,
+		SamplingRate: s.Metadata.SamplingRate,
+		Resolution:   s.Metadata.Resolution,
+	}
+}
+
 type SourceStream3 struct {
 	ID           string `json:"id"`
 	Available    bool   `json:"isAvailable"`
@@ -136,16 +146,6 @@ type SourceStream3 struct {
 	// Audio
 	SamplingRate       int   `json:"samplingRate"`
 	LoudnessCollection []any `json:"loudnessCollection"`
-}
-
-func (s *SourceStream2) SourceStream() *SourceStream {
-	return &SourceStream{
-		ID:           s.ID,
-		Available:    s.Available,
-		Bitrate:      s.Metadata.Bitrate,
-		SamplingRate: s.Metadata.SamplingRate,
-		Resolution:   s.Metadata.Resolution,
-	}
 }
 
 func (v *VideoData) IsDMC() bool {
@@ -216,6 +216,32 @@ func (v *VideoData) SmileFileExtension() string {
 
 func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 	var ret *SourceStream
+	var bitrate = -1
+	for _, s := range sources {
+		if s.Available && s.Bitrate > bitrate {
+			bitrate = s.Bitrate
+			ret = s
+		}
+	}
+	return ret
+}
+
+func (v *VideoData) GetPreferredAudio() *SourceStream3 {
+	if v.Media.Domand == nil {
+		return nil
+	}
+	return v.GetAvailableSource3(v.Media.Domand.Audios)
+}
+
+func (v *VideoData) GetPreferredVideo() *SourceStream3 {
+	if v.Media.Domand == nil {
+		return nil
+	}
+	return v.GetAvailableSource3(v.Media.Domand.Videos)
+}
+
+func (v *VideoData) GetAvailableSource3(sources []*SourceStream3) *SourceStream3 {
+	var ret *SourceStream3
 	var bitrate = -1
 	for _, s := range sources {
 		if s.Available && s.Bitrate > bitrate {

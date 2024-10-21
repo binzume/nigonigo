@@ -16,8 +16,9 @@ type DomandAccessData struct {
 }
 
 type DomandSession struct {
-	VideoData *VideoData
-	Data      DomandAccessData
+	Data  DomandAccessData
+	Video *SourceStream3
+	Audio *SourceStream3
 }
 
 func (s *DomandSession) FileExtension() string {
@@ -25,7 +26,10 @@ func (s *DomandSession) FileExtension() string {
 }
 
 func (s *DomandSession) SubStreams() [][]string {
-	return [][]string{{s.VideoData.Media.Domand.Audios[0].ID, "m4a"}}
+	if s.Audio != nil {
+		return [][]string{{s.Audio.ID, "m4a"}}
+	}
+	return nil
 }
 
 func (s *DomandSession) Download(ctx context.Context, client *http.Client, w io.Writer, stream string) error {
@@ -41,28 +45,31 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 	if !data.IsDomand() || data.Client.WatchTrackId == "" {
 		return nil, errors.New("domand is not available")
 	}
-	videos := data.Media.Domand.Videos
-	audios := data.Media.Domand.Audios
-	if len(videos) == 0 || len(audios) == 0 {
+	video := data.GetPreferredVideo()
+	audio := data.GetPreferredAudio()
+	if video == nil && audio == nil {
 		return nil, errors.New("no domand streams")
 	}
-	vid := data.Client.WatchId
-	trackid := data.Client.WatchTrackId
+
+	var streams []string
+	if video != nil {
+		streams = append(streams, video.ID)
+	}
+	if audio != nil {
+		streams = append(streams, audio.ID)
+	}
 
 	reqsession := struct {
 		Outputs [][]string `json:"outputs"`
-	}{
-		Outputs: [][]string{
-			{videos[0].ID, audios[0].ID},
-		},
-	}
+	}{Outputs: [][]string{streams}}
 
 	sessionBytes, err := json.Marshal(reqsession)
 	if err != nil {
 		return nil, err
 	}
 
-	url := nvApiUrl + "watch/" + vid + "/access-rights/hls?actionTrackId=" + trackid
+	trackid := data.Client.WatchTrackId
+	url := nvApiUrl + "watch/" + data.Client.WatchId + "/access-rights/hls?actionTrackId=" + trackid
 	req, err := http.NewRequest("POST", url, bytes.NewReader(sessionBytes))
 	if err != nil {
 		return nil, err
@@ -70,19 +77,12 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-access-right-key", data.Media.Domand.AccessRightKey)
 	req.Header.Set("x-frontend-id", "6")
-	req.Header.Set("x-frontend-version", "0")
-	req.Header.Set("x-niconico-language", "ja-jp")
 	req.Header.Set("x-request-with", "nicovideo")
 
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return nil, err
 	}
-
-	// log.Println(url)
-	// log.Println(data.Media.Domand.AccessRightKey)
-	// log.Println(string(sessionBytes))
-	// log.Println(string(res))
 
 	domainRes := struct {
 		Meta map[string]int   `json:"meta"`
@@ -94,5 +94,5 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 		return nil, err
 	}
 
-	return &DomandSession{VideoData: data, Data: domainRes.Data}, nil
+	return &DomandSession{Video: video, Audio: audio, Data: domainRes.Data}, nil
 }
