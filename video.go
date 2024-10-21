@@ -32,14 +32,28 @@ type VideoResponse struct {
 // JSON.parse($("#js-initial-watch-data").dataset.apiData);
 type VideoData struct {
 	Video struct {
-		ContentID      string `json:"id"`
-		Title          string `json:"title"`
+		ContentID   string `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Duration    int    `json:"duration"`
+
+		// v2024
+		RegisteredAt string `json:"registeredAt"`
+		Count        struct {
+			View    int `json:"view"`
+			Mylist  int `json:"mylist"`
+			Comment int `json:"comment"`
+		} `json:"count"`
+		Thumbnail struct {
+			Url string `json:"url"`
+		} `json:"thumbnail"`
+
+		// Deprecated?
 		ThumbnailURL   string `json:"thumbnailURL"`
-		Description    string `json:"description"`
-		Duration       int    `json:"duration"`
 		PostedDateTime string `json:"postedDateTime"`
 		ViewCount      int    `json:"viewCount"`
 		MylistCount    int    `json:"mylistCount"`
+
 		// Deprecated?
 		DMC struct {
 			Quality struct {
@@ -85,6 +99,13 @@ type VideoData struct {
 	Owner   map[string]interface{} `json:"owner"`
 	Channel map[string]interface{} `json:"channel"`
 	Context map[string]interface{} `json:"context"`
+
+	Tag struct {
+		Items []struct {
+			Name   string `json:"name"`
+			Locked bool   `json:"isLocked"`
+		} `json:"items"`
+	} `json:"tag"`
 
 	// v2024
 	Client struct {

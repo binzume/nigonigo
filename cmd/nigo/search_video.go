@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/binzume/nigonigo"
 )
@@ -24,12 +26,13 @@ func cmdSearch() {
 	filterUserID := flag.String("user", "", "filter by userId (obsoleted)")
 	filterChannelID := flag.String("ch", "", "filter by channelId (obsoleted)")
 	filterViewCount := flag.String("viewCount", "0", "filter by viewCounter")
-	series := flag.Bool("series", false, "series id")
+	seriesID := flag.String("series", "", "series id")
+	videoID := flag.String("id", "", "video id")
 	chOnly := flag.Bool("chOnly", false, "channel only")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
-	if flag.NArg() == 0 && *tag == "" {
+	if flag.NArg() == 0 && *tag == "" && *seriesID == "" && *videoID == "" {
 		flag.Usage()
 		return
 	}
@@ -75,8 +78,10 @@ func cmdSearch() {
 
 	var err error
 	var result *nigonigo.SearchResult
-	if *series {
-		result, err = client.FindSeriesVideos(req.Query)
+	if *seriesID != "" {
+		result, err = client.FindSeriesVideos(*seriesID)
+	} else if *videoID != "" {
+		result = fromVideoID(client, *videoID)
 	} else {
 		result, err = client.SearchVideo2(req)
 	}
@@ -102,4 +107,32 @@ func cmdSearch() {
 			fmt.Printf("%v\t%v\t%v\n", item.ContentID, item.StartTime, item.Title)
 		}
 	}
+}
+
+func fromVideoID(client *nigonigo.Client, id string) *nigonigo.SearchResult {
+	data, err := client.GetVideoData(id)
+	if err != nil {
+		return &nigonigo.SearchResult{TotalCount: 0}
+	}
+	var tags []string
+	for _, t := range data.Tag.Items {
+		tags = append(tags, t.Name)
+	}
+	userId, _ := data.Owner["id"].(float64)
+	channelId, _ := data.Channel["id"].(string)
+	channelId2, _ := strconv.Atoi(strings.TrimPrefix(channelId, "ch"))
+	return &nigonigo.SearchResult{TotalCount: 1, Items: []*nigonigo.SearchResultItem{{
+		ContentID:    data.Video.ContentID,
+		Title:        data.Video.Title,
+		Description:  data.Video.Description,
+		ViewCount:    data.Video.Count.View,
+		MylistCount:  data.Video.Count.Mylist,
+		CommentCount: data.Video.Count.Comment,
+		ThumbnailURL: data.Video.Thumbnail.Url,
+		Duration:     data.Video.Duration,
+		StartTime:    data.Video.RegisteredAt,
+		UserID:       int(userId),
+		ChannelID:    int(channelId2),
+		Tags:         strings.Join(tags, ","),
+	}}}
 }
