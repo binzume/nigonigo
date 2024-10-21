@@ -62,7 +62,7 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 		return nil, err
 	}
 
-	url := "https://nvapi.nicovideo.jp/v1/watch/" + vid + "/access-rights/hls?actionTrackId=" + trackid
+	url := nvApiUrl + "watch/" + vid + "/access-rights/hls?actionTrackId=" + trackid
 	req, err := http.NewRequest("POST", url, bytes.NewReader(sessionBytes))
 	if err != nil {
 		return nil, err
