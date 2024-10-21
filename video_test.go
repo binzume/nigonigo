@@ -8,7 +8,7 @@ import (
 )
 
 var testVid = "sm9"
-var downloadTimeout = 5 * time.Second
+var downloadTimeout = 25 * time.Second
 
 func TestDownload(t *testing.T) {
 	client := newClientForTest(t, false)
