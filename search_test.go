@@ -7,6 +7,7 @@ import (
 var testTag = "MMD"
 
 func TestSearchByTag(t *testing.T) {
+	t.SkipNow() // 2024/10 search api is not available
 	client := newClientForTest(t, false)
 
 	result, err := client.SearchByTag(testTag, 0, 1)
@@ -22,6 +23,7 @@ func TestSearchByTag(t *testing.T) {
 }
 
 func TestSearchVideo(t *testing.T) {
+	t.SkipNow() // 2024/10 search api is not available
 	client := newClientForTest(t, false)
 
 	filter := RangeFilter("viewCounter", "1000", "", false) // > 1000
