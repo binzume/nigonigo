@@ -1,59 +1,77 @@
 package nigonigo
 
 import (
-	"regexp"
+	"encoding/json"
 	"strconv"
 	"strings"
 )
 
-func (c *Client) FindSeriesVideos(sid string) (*SearchResult, error) {
+type SeriesItem struct {
+	Meta  map[string]any `json:"meta"`
+	Video *struct {
+		Type         string `json:"type"`
+		ID           string `json:"id"`
+		Title        string `json:"title"`
+		RegisteredAt string `json:"registeredAt"`
+		Count        struct {
+			View    int `json:"view"`
+			Mylist  int `json:"mylist"`
+			Comment int `json:"comment"`
+		} `json:"count"`
+		Thumbnail struct {
+			Url string `json:"url"`
+		} `json:"thumbnail"`
+		Duration         int    `json:"duration"`
+		ShortDescription string `json:"shortDescription"`
+		Owner            struct {
+			Type string `json:"type"`
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"owner"`
+	}
+}
+type SeriesResponse struct {
+	Meta map[string]any `json:"meta"`
+	Data struct {
+		TotalCount int          `json:"totalCount"`
+		Items      []SeriesItem `json:"items"`
+	} `json:"data"`
+}
 
-	body, err := getContent(c.HttpClient, seriesUrl+sid, nil)
+func (c *Client) FindSeriesVideos(sid string) (*SearchResult, error) {
+	body, err := getContent(c.HttpClient, nvApiV2Url+"series/"+sid+"?pageSize=500&page=1", nil)
 	if err != nil {
 		return nil, err
 	}
-	items := []*SearchResultItem{}
-
-	re := regexp.MustCompile(`(?s)<div class="NC-VideoMediaObjectWrapper"(.+?NC-VideoMetaCount_mylist"\s*>[0-9,]*</div>)`)
-	linkRe := regexp.MustCompile(`NC-MediaObject-contents"\s+href="https://www.nicovideo.jp/watch/([a-z0-9]+)`)
-	titleRe := regexp.MustCompile(`data-background-image="([^"]+)"[^>]+aria-label="([^"]+)"`)
-	countRe := regexp.MustCompile(`(?s)NC-VideoMetaCount_view"\s*>([0-9,]*).*?NC-VideoMetaCount_comment"\s*>([0-9,]*).*?NC-VideoMetaCount_mylist"\s*>([0-9,]*)`)
-	channelRe := regexp.MustCompile(`data-owner-id="ch([0-9]+)"`)
-	dateRe := regexp.MustCompile(`(?s)"NC-VideoRegisteredAtText-text">\s*([0-9/]+ [0-9:]+)\s*<`)
-
-	for _, match := range re.FindAllSubmatch(body, -1) {
-		m := linkRe.FindStringSubmatch(string(match[1]))
-		if m == nil {
-			continue
-		}
-		item := &SearchResultItem{ContentID: m[1]}
-
-		m = titleRe.FindStringSubmatch(string(match[1]))
-		if m != nil {
-			item.ThumbnailURL = m[1]
-			item.Title = m[2]
-		}
-
-		m = countRe.FindStringSubmatch(string(match[1]))
-		if m != nil {
-			item.ViewCount, _ = strconv.Atoi(strings.ReplaceAll(m[1], ",", ""))
-			item.CommentCount, _ = strconv.Atoi(strings.ReplaceAll(m[2], ",", ""))
-			item.MylistCount, _ = strconv.Atoi(strings.ReplaceAll(m[3], ",", ""))
-		}
-
-		m = dateRe.FindStringSubmatch(string(match[1]))
-		if m != nil {
-			// time.Parse("2006/1/2 15:4", m[1])
-			item.StartTime = m[1]
-		}
-
-		m = channelRe.FindStringSubmatch(string(match[1]))
-		if m != nil {
-			item.ChannelID, _ = strconv.Atoi(m[1])
-		}
-
-		items = append(items, item)
+	res := SeriesResponse{}
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return nil, err
 	}
 
-	return &SearchResult{Items: items, TotalCount: len(items)}, nil
+	items := []*SearchResultItem{}
+	for _, item := range res.Data.Items {
+		v := item.Video
+		if v == nil {
+			continue
+		}
+		r := &SearchResultItem{
+			ContentID:    v.ID,
+			Title:        v.Title,
+			ThumbnailURL: v.Thumbnail.Url,
+			ViewCount:    v.Count.View,
+			MylistCount:  v.Count.Mylist,
+			CommentCount: v.Count.Comment,
+			Description:  v.ShortDescription,
+			StartTime:    v.RegisteredAt,
+		}
+		if v.Owner.Type == "user" {
+			r.UserID, _ = strconv.Atoi(v.Owner.ID)
+		} else if v.Owner.Type == "channel" {
+			r.ChannelID, _ = strconv.Atoi(strings.TrimPrefix(v.Owner.ID, "ch"))
+		}
+		items = append(items, r)
+
+	}
+	return &SearchResult{Items: items, TotalCount: res.Data.TotalCount}, nil
 }

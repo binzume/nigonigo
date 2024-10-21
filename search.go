@@ -27,7 +27,7 @@ type SearchResultItem struct {
 	MylistCount  int    `json:"mylistCounter"`
 	CommentCount int    `json:"commentCounter"`
 
-	Description int    `json:"description"`
+	Description string `json:"description"`
 	UserID      int    `json:"userId"`
 	ChannelID   int    `json:"channelId"`
 	ThreadID    int    `json:"threadId"`
