@@ -11,7 +11,7 @@ const (
 	topUrl        = "https://www.nicovideo.jp/"
 	accountApiUrl = "https://account.nicovideo.jp/api/v1/"
 	logoutUrl     = "https://account.nicovideo.jp/logout"
-	searchApiUrl  = "https://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search"
+	searchApiUrl  = "https://snapshot.search.nicovideo.jp/api/v2/snapshot/video/contents/search"
 	watchUrl      = "https://www.nicovideo.jp/watch/"
 	httpOrigin    = "https://www.nicovideo.jp"
 	nvApiUrl      = "https://nvapi.nicovideo.jp/v1/"
