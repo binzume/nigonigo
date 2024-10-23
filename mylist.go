@@ -12,6 +12,7 @@ import (
 // errors
 var (
 	AuthenticationRequired = errors.New("authentication required")
+	NotFound               = errors.New("not exist")
 	InvalidResponse        = errors.New("invalid response received")
 )
 
@@ -190,23 +191,24 @@ func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
 
 func checkMylistResponse(body []byte) error {
 	type myListResponse struct {
-		Error *struct {
-			Code        string `json:"code"`
-			Description string `json:"description"`
-		} `json:"error"`
-		Status string `json:"status"`
+		Meta struct {
+			Status    int    `json:"status"`
+			ErrorCode string `json:"errorCode"`
+		} `json:"meta"`
 	}
 
 	var res myListResponse
 	err := json.Unmarshal(body, &res)
-	if res.Error != nil {
-		switch res.Error.Code {
-		case "NOAUTH":
+	if res.Meta.ErrorCode != "" {
+		switch res.Meta.Status {
+		case 401:
 			return AuthenticationRequired
-		case "NONEXIST":
-			return errors.New(res.Error.Code)
+		case 403:
+			return AuthenticationRequired
+		case 404:
+			return NotFound
 		default:
-			return errors.New(res.Error.Code)
+			return errors.New(res.Meta.ErrorCode)
 		}
 	}
 	return err

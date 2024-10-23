@@ -113,18 +113,23 @@ func TestMyList_AuthError(t *testing.T) {
 		t.Fatalf("expected: %v  got: %v", AuthenticationRequired, err)
 	}
 
-	err = client.DeleteMyList("0")
+	err = client.DeleteMyList(publicMyListId)
 	if err != AuthenticationRequired {
 		t.Fatalf("expected: %v  got: %v", AuthenticationRequired, err)
 	}
 
-	err = client.AddMyListItem("0", "sm9", "test test")
+	err = client.AddMyListItem(publicMyListId, "sm9", "test test")
+	if err != AuthenticationRequired {
+		t.Fatalf("expected: %v  got: %v", AuthenticationRequired, err)
+	}
+
+	err = client.DeleteMyListItem(publicMyListId, "sm9")
 	if err != AuthenticationRequired {
 		t.Fatalf("expected: %v  got: %v", AuthenticationRequired, err)
 	}
 
 	err = client.DeleteMyListItem("0", "sm9")
-	if err != AuthenticationRequired {
-		t.Fatalf("expected: %v  got: %v", AuthenticationRequired, err)
+	if err != NotFound {
+		t.Fatalf("expected: %v  got: %v", NotFound, err)
 	}
 }
