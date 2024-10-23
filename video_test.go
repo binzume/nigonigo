@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var testVid = "sm9"
+var testVid = "sm5188096"
 var downloadTimeout = 25 * time.Second
 
 func TestDownload(t *testing.T) {
