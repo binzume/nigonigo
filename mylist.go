@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
+	"log"
+	"net/http"
+	"strconv"
 )
 
 // errors
@@ -14,17 +16,17 @@ var (
 )
 
 type MyList struct {
-	ID          string `json:"id"`
+	ID          int    `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	UserID      int64  `json:"user_id,string"`
-	Public      int    `json:"public,string"`
 
-	CreatedTime int64 `json:"create_time"`
-	UpdatedTime int64 `json:"update_time"`
+	IsPublic    bool   `json:"isPublic"`
+	CreatedAt   string `json:"createdAt"`
+	SampleItems []any  `json:"sampleItems"`
 
-	SortOrder     string `json:"sort_order"`
-	PlaylistToken string `json:"watch_playlist"`
+	DefaultSortKey   string `json:"defaultSortKey"`
+	DefaultSortOrder string `json:"defaultSortOrder"`
 }
 
 type MyListItemType int
@@ -63,8 +65,10 @@ func (c *Client) GetMyLists() ([]*MyList, error) {
 	}
 
 	type myListResponse struct {
-		MyListGroup []*MyList `json:"mylistgroup"`
-		Status      string    `json:"status"`
+		Data struct {
+			MyLists []*MyList `json:"mylists"`
+		} `json:"data"`
+		Meta any `json:"meta"`
 	}
 
 	var res myListResponse
@@ -72,25 +76,21 @@ func (c *Client) GetMyLists() ([]*MyList, error) {
 	if err == nil {
 		err = checkMylistResponse(body)
 	}
-	return res.MyListGroup, err
+	return res.Data.MyLists, err
 }
 
 func (c *Client) CreateMyList(mylist *MyList) error {
-	token, err := c.getCsrfToken()
-	if err != nil {
-		return err
-	}
-
 	params := map[string]string{
-		"name":         mylist.Name,
-		"description":  mylist.Description,
-		"public":       fmt.Sprint(mylist.Public),
-		"default_sort": "1",
-		"icon_id":      "1",
-		"token":        token,
+		"name":             mylist.Name,
+		"description":      mylist.Description,
+		"isPublic":         fmt.Sprint(mylist.IsPublic),
+		"defaultSortKey":   "addedAt",
+		"defaultSortOrder": "desc",
 	}
 
-	req, err := newPostReq(topUrl+"api/mylistgroup/add", params)
+	req, err := newPostReq(nvApiUrl+"users/me/mylists", params)
+	req.Header.Set("X-Frontend-Id", "6")
+	req.Header.Set("x-request-with", "nicovideo")
 	if err != nil {
 		return err
 	}
@@ -101,33 +101,30 @@ func (c *Client) CreateMyList(mylist *MyList) error {
 	}
 
 	type myListResponse struct {
-		ID     int64  `json:"id"`
-		Status string `json:"status"`
+		Meta any `json:"meta"`
+		Data struct {
+			MyListID int    `json:"mylistId"`
+			MyList   MyList `json:"mylist"`
+		} `json:"Data"`
 	}
 	var result myListResponse
+	log.Println(string(res))
 	err = json.Unmarshal(res, &result)
 	if err != nil {
 		return err
 	}
-	mylist.ID = fmt.Sprint(result.ID)
+	mylist.ID = result.Data.MyListID
 
 	return checkMylistResponse(res)
 }
 
 func (c *Client) DeleteMyList(mylistId string) error {
-	token, err := c.getCsrfToken()
+	req, err := http.NewRequest("DELETE", nvApiUrl+"users/me/mylists/"+mylistId, nil)
 	if err != nil {
 		return err
 	}
-	params := map[string]string{
-		"group_id": mylistId,
-		"token":    token,
-	}
-
-	req, err := newPostReq(topUrl+"api/mylistgroup/delete", params)
-	if err != nil {
-		return err
-	}
+	req.Header.Add("X-Frontend-Id", "6")
+	req.Header.Set("x-request-with", "nicovideo")
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
@@ -135,17 +132,8 @@ func (c *Client) DeleteMyList(mylistId string) error {
 	return checkMylistResponse(res)
 }
 
-func (c *Client) GetDefListItems() ([]*MyListItem, error) {
-	return c.GetMyListItems("")
-}
-
 func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
-	var url string
-	if mylistId == "" || mylistId == "default" {
-		url = topUrl + "api/deflist/list"
-	} else {
-		url = topUrl + "api/mylist/list?group_id=" + mylistId
-	}
+	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items"
 
 	body, err := getContent(c.HttpClient, url, nil)
 	if err != nil {
@@ -166,24 +154,15 @@ func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 }
 
 func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
-	token, err := c.getCsrfToken()
-	if err != nil {
-		return err
-	}
 	params := map[string]string{
-		"group_id":    mylistId,
-		"item_id":     contentID,
+		"itemId":      contentID,
 		"description": description,
-		"token":       token,
 	}
 
-	var url string
-	if mylistId != "" {
-		url = topUrl + "api/mylist/add"
-	} else {
-		url = topUrl + "api/deflist/add"
-	}
+	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items"
 	req, err := newPostReq(url, params)
+	req.Header.Add("X-Frontend-Id", "6")
+	req.Header.Set("x-request-with", "nicovideo")
 	if err != nil {
 		return err
 	}
@@ -195,44 +174,18 @@ func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
 }
 
 func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
-	token, err := c.getCsrfToken()
+	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items?itemIds=" + itemID
+	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
-	params := map[string]string{
-		"group_id":     mylistId,
-		"id_list[0][]": itemID,
-		"token":        token,
-	}
-
-	var url string
-	if mylistId != "" {
-		url = topUrl + "api/mylist/delete"
-	} else {
-		url = topUrl + "api/deflist/delete"
-	}
-	req, err := newPostReq(url, params)
-	if err != nil {
-		return err
-	}
+	req.Header.Add("X-Frontend-Id", "6")
+	req.Header.Set("x-request-with", "nicovideo")
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
 	}
 	return checkMylistResponse(res)
-}
-func (c *Client) getCsrfToken() (string, error) {
-	body, err := getContent(c.HttpClient, topUrl+"my/mylist", nil)
-	if err != nil {
-		return "", err
-	}
-	re := regexp.MustCompile(`NicoAPI.token\s*=\s*"([0-9a-f-]+)"`)
-	match := re.FindStringSubmatch(string(body))
-	if match == nil {
-		return "", InvalidResponse
-	}
-
-	return match[1], nil
 }
 
 func checkMylistResponse(body []byte) error {
@@ -265,6 +218,7 @@ func (c *Client) GetPublicMyList(mylistId string) (*MyList, []*VideoInfo, error)
 		return nil, nil, err
 	}
 
+	intId, _ := strconv.Atoi(mylistId)
 	videos, err := parseVideoRss(body)
-	return &MyList{ID: mylistId, Name: videos.Title}, videos.Items, nil
+	return &MyList{ID: intId, Name: videos.Title}, videos.Items, err
 }

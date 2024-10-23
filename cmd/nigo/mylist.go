@@ -37,12 +37,11 @@ func cmdMylist() {
 			os.Stdout.Write(jsonStr)
 		} else {
 			for _, item := range result {
-				fmt.Printf("%v\t%v\t%v\t%v\t%v\n",
+				fmt.Printf("%v\t%v\t%v\t%v\n",
 					item.ID,
 					item.Name,
-					time.Unix(item.CreatedTime, 0),
-					time.Unix(item.UpdatedTime, 0),
-					item.Public)
+					item.CreatedAt,
+					item.IsPublic)
 			}
 		}
 	} else {

@@ -1,6 +1,7 @@
 package nigonigo
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -17,21 +18,11 @@ func TestGetMyLists(t *testing.T) {
 	if len(result) == 0 {
 		t.Fatalf("this account has no mylist: %v", result)
 	}
-
-	t.Logf("list :%v", result[0])
-	items, err := client.GetMyListItems("")
-	for _, item := range items {
-		t.Log(item)
+	for _, item := range result {
+		t.Logf("%#v", item)
 	}
-}
 
-func TestGetDeflistItem(t *testing.T) {
-	client := newClientForTest(t, true)
-
-	items, err := client.GetDefListItems()
-	if err != nil {
-		t.Fatalf("Failed to request %v", err)
-	}
+	items, err := client.GetMyListItems(strconv.Itoa(result[0].ID))
 	for _, item := range items {
 		t.Log(item)
 	}
@@ -46,16 +37,16 @@ func TestMyList_CreateDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to CreateMyList : %v", err)
 	}
-	if mylist.ID == "" {
+	if mylist.ID == 0 {
 		t.Fatalf("mylist.ID should not empty")
 	}
 
-	err = client.AddMyListItem(mylist.ID, "sm9", "test test test")
+	err = client.AddMyListItem(strconv.Itoa(mylist.ID), "sm9", "test test test")
 	if err != nil {
 		t.Fatalf("failed to AddMyListItem : %v", err)
 	}
 
-	err = client.DeleteMyListItem(mylist.ID, "sm9")
+	err = client.DeleteMyListItem(strconv.Itoa(mylist.ID), "sm9")
 	if err != nil {
 		t.Fatalf("failed to DeleteMyListItem : %v", err)
 	}
@@ -76,7 +67,7 @@ func TestMyList_CreateDelete(t *testing.T) {
 		}
 	}
 
-	err = client.DeleteMyList(mylist.ID)
+	err = client.DeleteMyList(strconv.Itoa(mylist.ID))
 	if err != nil {
 		t.Fatalf("failed to DeleteMyList : %v", err)
 	}
@@ -84,7 +75,7 @@ func TestMyList_CreateDelete(t *testing.T) {
 	// clean up
 	for _, m := range lists {
 		if m.Name == myListNameForTest && m.ID != mylist.ID {
-			err = client.DeleteMyList(m.ID)
+			err = client.DeleteMyList(strconv.Itoa(m.ID))
 			if err != nil {
 				t.Errorf("failed to DeleteMyList : %v", err)
 			}
