@@ -49,7 +49,7 @@ func download(client *nigonigo.Client, contentID string, saveThumbnail bool) {
 	}
 
 	if saveThumbnail {
-		err = downloadThumbnail(video.Video.ThumbnailURL, contentID+".jpg")
+		err = downloadThumbnail(video.Video.Thumbnail.Url, contentID+".jpg")
 		if err != nil {
 			log.Printf("Failed to get thumbnail: %v", err)
 		}

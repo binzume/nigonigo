@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -22,9 +21,10 @@ type MyList struct {
 	Description string `json:"description"`
 	UserID      int64  `json:"user_id,string"`
 
-	IsPublic    bool   `json:"isPublic"`
-	CreatedAt   string `json:"createdAt"`
-	SampleItems []any  `json:"sampleItems"`
+	IsPublic    bool          `json:"isPublic"`
+	CreatedAt   string        `json:"createdAt"`
+	SampleItems []*MyListItem `json:"sampleItems"`
+	Items       []*MyListItem `json:"items"`
 
 	DefaultSortKey   string `json:"defaultSortKey"`
 	DefaultSortOrder string `json:"defaultSortOrder"`
@@ -48,15 +48,28 @@ func (m *MyListItemType) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-type MyListItem struct {
-	ItemID      string         `json:"item_id"`
-	Type        MyListItemType `json:"item_type"`
-	Description string         `json:"description"`
-	Data        VideoInfo      `json:"item_data"`
+type VideoInfo struct {
+	BaseVideoInfo
 
-	CreatedTime int64 `json:"create_time"`
-	UpdatedTime int64 `json:"update_time"`
-	Watch       int   `json:"watch"`
+	Owner OwnerInfo `json:"owner"`
+
+	// mylist
+	Type                 string   `json:"string"`
+	ShortDescription     string   `json:"shortDescription"`
+	IsChannelVideo       bool     `json:"isChannelVideo"`
+	IsPaymentRequired    bool     `json:"isPaymentRequired"`
+	LatestCommentSummary string   `json:"latestCommentSummary"`
+	PlaybackPosition     *float32 `json:"playbackPosition"`
+}
+
+type MyListItem struct {
+	ItemID      int       `json:"itemId"`
+	WatchID     string    `json:"watchId"`
+	Description string    `json:"description"`
+	Data        VideoInfo `json:"video"`
+	Status      string    `json:"status"`
+
+	AddedAt string `json:"addedAt"`
 }
 
 func (c *Client) GetMyLists() ([]*MyList, error) {
@@ -107,7 +120,6 @@ func (c *Client) CreateMyList(mylist *MyList) error {
 		} `json:"Data"`
 	}
 	var result myListResponse
-	log.Println(string(res))
 	err = json.Unmarshal(res, &result)
 	if err != nil {
 		return err
@@ -138,8 +150,7 @@ func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 	}
 
 	type myListResponse struct {
-		MylistItems []*MyListItem `json:"mylistitem"`
-		Status      string        `json:"status"`
+		Data MyList `json:"Data"`
 	}
 
 	var res myListResponse
@@ -147,7 +158,7 @@ func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
 	if err == nil {
 		err = checkMylistResponse(body)
 	}
-	return res.MylistItems, err
+	return res.Data.Items, err
 }
 
 func (c *Client) AddMyListItem(mylistId, contentID, description string) error {

@@ -8,19 +8,6 @@ import (
 	"time"
 )
 
-type VideoInfo struct {
-	ContentID    string `json:"video_id"`
-	Title        string `json:"title"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	Duration     int    `json:"length_seconds,string"`
-	ViewCount    int    `json:"view_counter,string"`
-	MylistCount  int    `json:"mylist_counter,string"`
-	CommentCount int    `json:"num_res,string"`
-	StartTime    int64  `json:"first_retrieve"`
-
-	Deleted int `json:"deleted,string"`
-}
-
 type VideoListPage struct {
 	Title string
 	Owner string
@@ -51,7 +38,7 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 		id := path.Base(ritem.Link)
 		t, _ := time.Parse(time.RFC1123Z, ritem.PubDate)
 
-		item := &VideoInfo{Title: ritem.Title, ContentID: id, StartTime: t.Unix()}
+		item := &VideoInfo{BaseVideoInfo: BaseVideoInfo{Title: ritem.Title, ContentID: id, RegisteredAt: t.Format(time.RFC3339)}}
 
 		var desc struct {
 			Imgs []struct {
@@ -65,7 +52,7 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 		descText := strings.Replace(ritem.Description, "&nbsp;", " ", -1)
 		err = xml.Unmarshal([]byte("<xx>"+descText+"</xx>"), &desc)
 		if len(desc.Imgs) > 0 {
-			item.ThumbnailURL = desc.Imgs[0].Src
+			item.Thumbnail.Url = desc.Imgs[0].Src
 		}
 		for _, d := range desc.Info {
 			if d.Class == "nico-info-length" {
@@ -78,17 +65,17 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 			} else if d.Class == "nico-info-date" {
 				t, err := time.Parse("2006年01月02日 15：04：05", d.Value)
 				if err == nil {
-					item.StartTime = t.Unix()
+					item.RegisteredAt = t.Format(time.RFC3339)
 				}
 			} else if d.Class == "nico-numbers-view" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
-				item.ViewCount = n
+				item.Count.View = n
 			} else if d.Class == "nico-numbers-mylist" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
-				item.MylistCount = n
+				item.Count.Mylist = n
 			} else if d.Class == "nico-numbers-res" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
-				item.CommentCount = n
+				item.Count.Comment = n
 			}
 		}
 		items = append(items, item)

@@ -29,30 +29,37 @@ type VideoResponse struct {
 	} `json:"data"`
 }
 
+type BaseVideoInfo struct {
+	ContentID   string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Duration    int    `json:"duration"`
+
+	RegisteredAt string `json:"registeredAt"`
+	Count        struct {
+		View    int `json:"view"`
+		Mylist  int `json:"mylist"`
+		Comment int `json:"comment"`
+	} `json:"count"`
+	Thumbnail struct {
+		Url string `json:"url"`
+	} `json:"thumbnail"`
+}
+
+type OwnerInfo map[string]any
+
+type OwnerInfo_ struct {
+	Type       string `json:"type"`
+	ID         int    `json:"id,string"`
+	Name       string `json:"name"`
+	Visibility string `json:"visibility"`
+	IconUrl    string `json:"iconUrl"`
+}
+
 // JSON.parse($("#js-initial-watch-data").dataset.apiData);
 type VideoData struct {
 	Video struct {
-		ContentID   string `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Duration    int    `json:"duration"`
-
-		// v2024
-		RegisteredAt string `json:"registeredAt"`
-		Count        struct {
-			View    int `json:"view"`
-			Mylist  int `json:"mylist"`
-			Comment int `json:"comment"`
-		} `json:"count"`
-		Thumbnail struct {
-			Url string `json:"url"`
-		} `json:"thumbnail"`
-
-		// Deprecated?
-		ThumbnailURL   string `json:"thumbnailURL"`
-		PostedDateTime string `json:"postedDateTime"`
-		ViewCount      int    `json:"viewCount"`
-		MylistCount    int    `json:"mylistCount"`
+		BaseVideoInfo
 
 		// Deprecated?
 		DMC struct {
@@ -96,7 +103,7 @@ type VideoData struct {
 		} `json:"domand"`
 	} `json:"media"`
 	Thread  map[string]interface{} `json:"thread"`
-	Owner   map[string]interface{} `json:"owner"`
+	Owner   OwnerInfo              `json:"owner"`
 	Channel map[string]interface{} `json:"channel"`
 	Context map[string]interface{} `json:"context"`
 

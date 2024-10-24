@@ -22,9 +22,12 @@ func TestGetMyLists(t *testing.T) {
 		t.Logf("%#v", item)
 	}
 
-	items, err := client.GetMyListItems(strconv.Itoa(result[0].ID))
+	items, err := client.GetMyListItems(strconv.Itoa(result[2].ID))
+	if err != nil {
+		t.Fatalf("Failed to request %v", err)
+	}
 	for _, item := range items {
-		t.Log(item)
+		t.Logf("%v", item)
 	}
 }
 

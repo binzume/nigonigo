@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/binzume/nigonigo"
 )
@@ -54,12 +53,11 @@ func cmdMylist() {
 			os.Stdout.Write(jsonStr)
 		} else {
 			for _, item := range result {
-				fmt.Printf("%v\t%v\t%v\t%v\t%v\n",
+				fmt.Printf("%v\t%v\t%v\t%v\n",
 					item.ItemID,
 					item.Data.ContentID,
 					item.Data.Title,
-					time.Unix(item.CreatedTime, 0),
-					time.Unix(item.UpdatedTime, 0))
+					item.AddedAt)
 			}
 		}
 	}
