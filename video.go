@@ -473,8 +473,6 @@ func (c *Client) prepareLicense(data *VideoData) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set("X-Frontend-Id", "6")
-		req.Header.Set("X-Frontend-Version", "0")
 
 		_, err = doRequest(c.HttpClient, req)
 		if err != nil {

@@ -90,8 +90,6 @@ func (c *Client) CreateMyList(mylist *MyList) error {
 	}
 
 	req, err := newPostReq(nvApiUrl+"users/me/mylists", params)
-	req.Header.Set("X-Frontend-Id", "6")
-	req.Header.Set("x-request-with", "nicovideo")
 	if err != nil {
 		return err
 	}
@@ -124,8 +122,6 @@ func (c *Client) DeleteMyList(mylistId string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("X-Frontend-Id", "6")
-	req.Header.Set("x-request-with", "nicovideo")
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err
@@ -162,8 +158,6 @@ func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
 
 	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items"
 	req, err := newPostReq(url, params)
-	req.Header.Add("X-Frontend-Id", "6")
-	req.Header.Set("x-request-with", "nicovideo")
 	if err != nil {
 		return err
 	}
@@ -180,8 +174,6 @@ func (c *Client) DeleteMyListItem(mylistId string, itemID string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("X-Frontend-Id", "6")
-	req.Header.Set("x-request-with", "nicovideo")
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {
 		return err

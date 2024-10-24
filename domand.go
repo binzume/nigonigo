@@ -76,8 +76,6 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-access-right-key", data.Media.Domand.AccessRightKey)
-	req.Header.Set("x-frontend-id", "6")
-	req.Header.Set("x-request-with", "nicovideo")
 
 	res, err := doRequest(c.HttpClient, req)
 	if err != nil {

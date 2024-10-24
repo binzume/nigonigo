@@ -25,6 +25,11 @@ type agentSetter struct{}
 func (t *agentSetter) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Origin", httpOrigin)
+
+	// headers for nvapi.nicovideo.jp
+	req.Header.Set("x-frontend-id", "6")
+	req.Header.Set("x-request-with", "nicovideo")
+
 	if RequestLogger != nil {
 		RequestLogger.Println("REQUEST", req.Method, req.URL)
 	}
@@ -61,7 +66,6 @@ func getContent(client *http.Client, url string, params map[string]string) ([]by
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("X-Frontend-Id", "6") // FIXME
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
