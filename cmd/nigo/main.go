@@ -10,7 +10,7 @@ import (
 var defaultSessionFilePath = ".nigo_session.json"
 
 func printMainUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download [params] [-help]\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %v auth|search|mylist|download|ranking [params] [-help]\n", os.Args[0])
 	os.Exit(1)
 }
 
@@ -32,6 +32,8 @@ func main() {
 		cmdMylist()
 	case "download":
 		cmdDownload()
+	case "ranking":
+		cmdRanking()
 	default:
 		printMainUsage()
 	}

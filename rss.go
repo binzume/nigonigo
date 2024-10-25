@@ -35,7 +35,7 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 
 	var items []*VideoInfo
 	for _, ritem := range videoListRss.Items {
-		id := path.Base(ritem.Link)
+		id := strings.SplitN(path.Base(ritem.Link), "?", 2)[0]
 		t, _ := time.Parse(time.RFC1123Z, ritem.PubDate)
 
 		item := &VideoInfo{BaseVideoInfo: BaseVideoInfo{Title: ritem.Title, ContentID: id, RegisteredAt: t.Format(time.RFC3339)}}
@@ -54,6 +54,7 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 		if len(desc.Imgs) > 0 {
 			item.Thumbnail.Url = desc.Imgs[0].Src
 		}
+
 		for _, d := range desc.Info {
 			if d.Class == "nico-info-length" {
 				t := strings.SplitN(d.Value, ":", 2)
@@ -67,13 +68,13 @@ func parseVideoRss(body []byte) (*VideoListPage, error) {
 				if err == nil {
 					item.RegisteredAt = t.Format(time.RFC3339)
 				}
-			} else if d.Class == "nico-numbers-view" {
+			} else if d.Class == "nico-numbers-view" || d.Class == "nico-info-total-view" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
 				item.Count.View = n
-			} else if d.Class == "nico-numbers-mylist" {
+			} else if d.Class == "nico-numbers-mylist" || d.Class == "nico-info-total-mylist" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
 				item.Count.Mylist = n
-			} else if d.Class == "nico-numbers-res" {
+			} else if d.Class == "nico-numbers-res" || d.Class == "nico-info-total-res" {
 				n, _ := strconv.Atoi(strings.Replace(d.Value, ",", "", -1))
 				item.Count.Comment = n
 			}
