@@ -16,6 +16,32 @@ type NicoSession struct {
 	SessionString string `json:"user_session"`
 }
 
+type AccountStatus struct {
+	Area     string `json:"area"`
+	Timezone string `json:"timezone"`
+	Language string `json:"language"`
+	Locale   string `json:"locale"`
+	UserID   string `json:"userId"`
+	Nickname string `json:"nickname"`
+
+	Description string `json:"description"`
+
+	HasPremiumOrStrongerRights      bool `json:"hasPremiumOrStrongerRights"`
+	HasSuperPremiumOrStrongerRights bool `json:"hasSuperPremiumOrStrongerRights"`
+	IsExplicitlyLoginable           bool `json:"isExplicitlyLoginable"`
+
+	Premium struct {
+		Type string `json:"type"`
+	} `json:"premium"`
+
+	Icons struct {
+		Urls map[string]string `json:"urls"` // "50x50", "150x150"
+	} `json:"icons"`
+
+	Existence map[string]any `json:"existence"` // residence, birthdat, sex
+	Contacts  map[string]any `json:"contacts"`  // emails
+}
+
 func (c *Client) Login(id, password string) error {
 	params := map[string]string{
 		"mail_tel": id,
@@ -146,11 +172,25 @@ func (c *Client) GetAvailableSessions() ([]string, error) {
 
 	body, err := getContent(c.HttpClient, "https://account.nicovideo.jp/my/history/login", nil)
 	if err != nil {
-		return nil, err
+		return sessions, err
 	}
-	re := regexp.MustCompile(`<div class="access-status-list-item"[^>]*id="(user_session_[0-9a-f_-]+)"`)
+	re := regexp.MustCompile(`<div id="(user_session_[0-9a-f_-]+)"`)
 	for _, match := range re.FindAllSubmatch(body, -1) {
 		sessions = append(sessions, string(match[1]))
 	}
 	return sessions, nil
+}
+
+func (c *Client) GetAccountStatus() (*AccountStatus, error) {
+	body, err := getContent(c.HttpClient, "https://account.nicovideo.jp/api/public/v2/user.json", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res := struct {
+		Meta map[string]any
+		Data AccountStatus
+	}{}
+	err = json.Unmarshal(body, &res)
+	return &res.Data, err
 }

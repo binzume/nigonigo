@@ -58,3 +58,14 @@ func TestGetSessions(t *testing.T) {
 		t.Logf("SESSION :%v", s)
 	}
 }
+
+func TestGetAccountStatus(t *testing.T) {
+	client := newClientForTest(t, true)
+
+	status, err := client.GetAccountStatus()
+	if err != nil {
+		t.Fatalf("Failed to get sessions: %v", err)
+	}
+
+	t.Logf("SESSION :%#v", status)
+}
