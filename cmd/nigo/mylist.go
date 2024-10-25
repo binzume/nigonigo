@@ -44,7 +44,7 @@ func cmdMylist() {
 			}
 		}
 	} else {
-		result, err := client.GetMyListItems(flag.Arg(0))
+		result, err := client.GetMyList(flag.Arg(0))
 		if err != nil {
 			log.Fatalf("Failed to request %v", err)
 		}
@@ -52,7 +52,7 @@ func cmdMylist() {
 			jsonStr, _ := json.MarshalIndent(result, "", "   ")
 			os.Stdout.Write(jsonStr)
 		} else {
-			for _, item := range result {
+			for _, item := range result.Items {
 				fmt.Printf("%v\t%v\t%v\t%v\n",
 					item.ItemID,
 					item.Data.ContentID,
