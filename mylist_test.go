@@ -7,6 +7,38 @@ import (
 
 var myListNameForTest = "_test_mylist"
 var publicMyListId = "2569551"
+var testUserID = 1842795
+
+func TestGetUserMyList(t *testing.T) {
+	client := newClientForTest(t, false)
+
+	mylists, err := client.GetUserMyLists(testUserID)
+	if err != nil {
+		t.Fatalf("Failed to get mylists: %v", err)
+	}
+	if len(mylists) == 0 {
+		t.Fatalf("no mylist")
+	}
+	for _, item := range mylists {
+		t.Logf("%v", item)
+	}
+}
+
+func TestGetMyList(t *testing.T) {
+	client := newClientForTest(t, false)
+
+	mylist, err := client.GetMyList(publicMyListId)
+	if err != nil {
+		t.Fatalf("Failed to request: %v", err)
+	}
+	if len(mylist.Items) == 0 {
+		t.Fatalf("no items")
+	}
+
+	for _, item := range mylist.Items {
+		t.Logf("%v", item)
+	}
+}
 
 func TestGetMyLists(t *testing.T) {
 	client := newClientForTest(t, true)

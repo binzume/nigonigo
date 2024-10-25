@@ -72,8 +72,21 @@ type MyListItem struct {
 	AddedAt string `json:"addedAt"`
 }
 
+func mylistApiUrl(userID int) string {
+	if userID <= 0 {
+		return nvApiUrl + "users/me/mylists"
+	} else {
+		return nvApiUrl + "users/" + strconv.Itoa(userID) + "/mylists"
+	}
+}
+
 func (c *Client) GetMyLists() ([]*MyList, error) {
-	body, err := getContent(c.HttpClient, nvApiUrl+"users/me/mylists?sampleItemCount=0", nil)
+	return c.GetUserMyLists(-1)
+}
+
+func (c *Client) GetUserMyLists(userID int) ([]*MyList, error) {
+
+	body, err := getContent(c.HttpClient, mylistApiUrl(userID)+"?sampleItemCount=0", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +152,26 @@ func (c *Client) DeleteMyList(mylistId string) error {
 		return err
 	}
 	return checkMylistResponse(res)
+}
+
+func (c *Client) GetMyList(mylistId string) (*MyList, error) {
+	url := nvApiV2Url + "mylists/" + mylistId + "?pageSize=1000&page=1" // sensitiveContents=mask
+
+	body, err := getContent(c.HttpClient, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var res struct {
+		Data struct {
+			MyList MyList `json:"mylist"`
+		} `json:"Data"`
+	}
+	err = json.Unmarshal(body, &res)
+	if err == nil {
+		err = checkMylistResponse(body)
+	}
+	return &res.Data.MyList, err
 }
 
 func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
