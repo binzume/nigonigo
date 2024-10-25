@@ -10,6 +10,27 @@ import (
 var testVid = "sm5188096"
 var downloadTimeout = 25 * time.Second
 
+func TestGetVideoData(t *testing.T) {
+	client := newClientForTest(t, false)
+	data, err := client.GetVideoData(testVid)
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	nvComment := data.Comment.NvComment
+	if nvComment != nil {
+		threads, err := client.GetComments(nvComment.Server, nvComment.Threadkey, nvComment.Params)
+		if err != nil {
+			t.Fatalf("Failed to get comment: %v", err)
+		}
+		for _, thread := range threads {
+			for _, comment := range thread.Comments {
+				t.Logf("comment: %v", comment)
+			}
+		}
+	}
+}
+
 func TestDownload(t *testing.T) {
 	client := newClientForTest(t, false)
 	ctx := context.Background()

@@ -107,6 +107,15 @@ type VideoData struct {
 	Channel map[string]interface{} `json:"channel"`
 	Context map[string]interface{} `json:"context"`
 
+	Comment struct {
+		NvComment *struct {
+			Params    map[string]any `json:"params"`
+			Server    string         `json:"server"`
+			Threadkey string         `json:"threadKey"`
+		} `json:"nvComment"`
+		Threads []map[string]any `json:"threads"`
+	} `json:"comment"`
+
 	Tag struct {
 		Items []struct {
 			Name   string `json:"name"`

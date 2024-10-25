@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/binzume/nigonigo"
@@ -15,6 +16,14 @@ import (
 
 type ByteCounter struct {
 	Count int64
+}
+
+func join(sep string, values ...any) string {
+	strs := make([]string, len(values))
+	for i, v := range values {
+		strs[i] = fmt.Sprint(v)
+	}
+	return strings.Join(strs, sep)
 }
 
 func (w *ByteCounter) Write(p []byte) (int, error) {
@@ -40,6 +49,35 @@ func downloadThumbnail(url, outpath string) (err error) {
 
 	_, err = io.Copy(out, resp.Body)
 	return
+}
+
+func downloadComment(client *nigonigo.Client, data *nigonigo.VideoData) error {
+
+	outpath := data.Client.WatchId + ".tsv"
+
+	nvComment := data.Comment.NvComment
+	if nvComment == nil {
+		return fmt.Errorf("failed to get comment params")
+	}
+
+	threads, err := client.GetComments(nvComment.Server, nvComment.Threadkey, nvComment.Params)
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create(outpath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	for _, thread := range threads {
+		for _, comment := range thread.Comments {
+			out.WriteString(join("\t", thread.Fork, comment.ID, comment.No, comment.VposMs, comment.PostedAt, strings.ReplaceAll(comment.Body, "\n", " "), comment.Commands) + "\n")
+		}
+	}
+
+	return nil
 }
 
 func download(client *nigonigo.Client, contentID string, saveThumbnail bool) {
@@ -93,6 +131,7 @@ func cmdDownload() {
 	accountFile := flag.String("a", "account.json", "account.json")
 	sessionFile := flag.String("s", defaultSessionFilePath, "session.json")
 	saveThumbnail := flag.Bool("t", false, "save thumbnail")
+	saveComments := flag.Bool("comment", false, "save comments")
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
@@ -108,6 +147,14 @@ func cmdDownload() {
 	}
 
 	for _, contentID := range flag.Args() {
+		if *saveComments {
+			video, err := client.GetVideoData(contentID)
+			if err != nil {
+				log.Fatalf("Failed to get video info: %v", err)
+			}
+			downloadComment(client, video)
+			continue
+		}
 		download(client, contentID, *saveThumbnail)
 	}
 }
