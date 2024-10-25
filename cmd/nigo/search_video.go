@@ -32,11 +32,6 @@ func cmdSearch() {
 	// flag.Parse()
 	flag.CommandLine.Parse(os.Args[2:])
 
-	if flag.NArg() == 0 && *tag == "" && *seriesID == "" && *videoID == "" {
-		flag.Usage()
-		return
-	}
-
 	client := nigonigo.NewClient()
 
 	req := &nigonigo.SearchRequest{
