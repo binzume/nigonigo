@@ -54,7 +54,7 @@ type VideoInfo struct {
 	Owner OwnerInfo `json:"owner"`
 
 	// mylist
-	Type                 string   `json:"string"`
+	Type                 string   `json:"type"`
 	ShortDescription     string   `json:"shortDescription"`
 	IsChannelVideo       bool     `json:"isChannelVideo"`
 	IsPaymentRequired    bool     `json:"isPaymentRequired"`
