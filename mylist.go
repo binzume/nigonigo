@@ -63,13 +63,18 @@ type VideoInfo struct {
 }
 
 type MyListItem struct {
-	ItemID      int       `json:"itemId"`
-	WatchID     string    `json:"watchId"`
-	Description string    `json:"description"`
-	Data        VideoInfo `json:"video"`
-	Status      string    `json:"status"`
+	ItemID  int       `json:"itemId"`
+	WatchID string    `json:"watchId"`
+	Status  string    `json:"status"` // deleted, public
+	AddedAt string    `json:"addedAt"`
+	Video   VideoInfo `json:"video"`
 
-	AddedAt string `json:"addedAt"`
+	Description              string `json:"description"`
+	DecoratedDescriptionHtml string `json:"decoratedDescriptionHtml"`
+}
+
+func (m *MyListItem) IsDeleted() bool {
+	return m.Status == "deleted"
 }
 
 func mylistApiUrl(userID int) string {
@@ -155,6 +160,26 @@ func (c *Client) DeleteMyList(mylistId string) error {
 }
 
 func (c *Client) GetMyList(mylistId string) (*MyList, error) {
+	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items"
+
+	body, err := getContent(c.HttpClient, url, nil)
+	if err != nil {
+		return c.GetPublicMyList(mylistId)
+	}
+
+	type myListResponse struct {
+		Data MyList `json:"Data"`
+	}
+
+	var res myListResponse
+	err = json.Unmarshal(body, &res)
+	if err == nil {
+		err = checkMylistResponse(body)
+	}
+	return &res.Data, err
+}
+
+func (c *Client) GetPublicMyList(mylistId string) (*MyList, error) {
 	url := nvApiV2Url + "mylists/" + mylistId + "?pageSize=1000&page=1" // sensitiveContents=mask
 
 	body, err := getContent(c.HttpClient, url, nil)
@@ -175,23 +200,12 @@ func (c *Client) GetMyList(mylistId string) (*MyList, error) {
 }
 
 func (c *Client) GetMyListItems(mylistId string) ([]*MyListItem, error) {
-	url := nvApiUrl + "users/me/mylists/" + mylistId + "/items"
-
-	body, err := getContent(c.HttpClient, url, nil)
+	mylist, err := c.GetMyList(mylistId)
 	if err != nil {
 		return nil, err
 	}
 
-	type myListResponse struct {
-		Data MyList `json:"Data"`
-	}
-
-	var res myListResponse
-	err = json.Unmarshal(body, &res)
-	if err == nil {
-		err = checkMylistResponse(body)
-	}
-	return res.Data.Items, err
+	return mylist.Items, err
 }
 
 func (c *Client) AddMyListItem(mylistId, contentID, description string) error {
@@ -250,7 +264,7 @@ func checkMylistResponse(body []byte) error {
 	return err
 }
 
-func (c *Client) GetPublicMyList(mylistId string) (*MyList, []*VideoInfo, error) {
+func (c *Client) GetPublicMyListRSS(mylistId string) (*MyList, []*VideoInfo, error) {
 	body, err := getContent(c.HttpClient, topUrl+"/mylist/"+mylistId+"?rss=2.0&numbers=1", nil)
 	if err != nil {
 		return nil, nil, err

@@ -121,7 +121,7 @@ func TestMyList_CreateDelete(t *testing.T) {
 func TestGetPublicMyList(t *testing.T) {
 	client := newClientForTest(t, false)
 
-	_, items, err := client.GetPublicMyList(publicMyListId)
+	_, items, err := client.GetPublicMyListRSS(publicMyListId)
 	if err != nil {
 		t.Fatalf("failed to DeleteMyList : %v", err)
 	}

@@ -74,7 +74,7 @@ func cmdSearch() {
 	var err error
 	var result *nigonigo.SearchResult
 	if *seriesID != "" {
-		result, err = client.FindSeriesVideos(*seriesID)
+		result, err = client.GetSeriesVideos(*seriesID)
 	} else if *videoID != "" {
 		result = fromVideoID(client, *videoID)
 	} else {

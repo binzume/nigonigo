@@ -4,12 +4,12 @@ import (
 	"testing"
 )
 
-var testSeries = "426995"
+var testSeries = "96269"
 
 func TestSeries(t *testing.T) {
 	client := newClientForTest(t, false)
 
-	result, err := client.FindSeriesVideos(testSeries)
+	result, err := client.GetSeriesVideos(testSeries)
 	if err != nil {
 		t.Fatalf("Failed to request %v", err)
 	}

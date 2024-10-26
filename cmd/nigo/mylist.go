@@ -55,11 +55,10 @@ func cmdMylist() {
 			for _, item := range result.Items {
 				fmt.Printf("%v\t%v\t%v\t%v\n",
 					item.ItemID,
-					item.Data.ContentID,
-					item.Data.Title,
+					item.WatchID,
+					item.Video.Title,
 					item.AddedAt)
 			}
 		}
 	}
-
 }

@@ -38,8 +38,8 @@ type SeriesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) FindSeriesVideos(sid string) (*SearchResult, error) {
-	body, err := getContent(c.HttpClient, nvApiV2Url+"series/"+sid+"?pageSize=500&page=1", nil)
+func (c *Client) GetSeriesVideos(seriesID string) (*SearchResult, error) {
+	body, err := getContent(c.HttpClient, nvApiV2Url+"series/"+seriesID+"?pageSize=500&page=1", nil)
 	if err != nil {
 		return nil, err
 	}
