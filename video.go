@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html"
 	"io"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -291,14 +291,7 @@ func (v *VideoData) GetAvailableSource3(sources []*SourceStream3) *SourceStream3
 
 type VideoSession interface {
 	FileExtension() string
-}
-
-type SmileSession struct {
-	VideoData *VideoData
-}
-
-func (s *SmileSession) FileExtension() string {
-	return s.VideoData.SmileFileExtension()
+	Download(ctx context.Context, client *http.Client, w io.Writer, optionalStreamID string) error
 }
 
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
@@ -357,21 +350,21 @@ func (c *Client) CreateVideoSession(contentID string) (VideoSession, error) {
 
 func (c *Client) CreateVideoSessionFromVideoData(data *VideoData) (VideoSession, error) {
 	if data.IsDMC() {
-		return c.CreateDMCSessionByVideoData(data)
+		return CreateDMCSessionByVideoData(c.HttpClient, data)
 	} else if data.IsSmile() {
-		return c.CreateSmileSessionByVideoData(data)
+		return CreateSmileSessionByVideoData(c.HttpClient, data)
 	} else if data.IsDomand() {
-		return c.CreateDomandSessionByVideoData(data)
+		return CreateDomandSessionByVideoData(c.HttpClient, data)
 	}
 	return nil, errors.New("no available video source")
 }
 
 func (c *Client) Download(ctx context.Context, session VideoSession, w io.Writer) error {
 	if dmcSession, ok := session.(*DMCSession); ok {
-		return c.DownloadFromDMC(ctx, dmcSession, w)
+		return dmcSession.Download(ctx, c.HttpClient, w, "")
 	}
 	if smileSession, ok := session.(*SmileSession); ok {
-		return c.DownloadFromSmile(ctx, smileSession.VideoData, w)
+		return smileSession.Download(ctx, c.HttpClient, w, "")
 	}
 	if domandSession, ok := session.(*DomandSession); ok {
 		return domandSession.Download(ctx, c.HttpClient, w, "")
@@ -480,7 +473,7 @@ func (data *VideoData) GenDMCSessionReq(audio, video string) (jsonObject, error)
 	return reqsession, nil
 }
 
-func (c *Client) prepareLicense(data *VideoData) error {
+func prepareLicense(client *http.Client, data *VideoData) error {
 	if len(data.GetEncryption()) > 0 {
 		// Prepare encryption key.
 		// See: https://github.com/tor4kichi/Hohoema/issues/778
@@ -490,55 +483,10 @@ func (c *Client) prepareLicense(data *VideoData) error {
 			return err
 		}
 
-		_, err = doRequest(c.HttpClient, req)
+		_, err = doRequest(client, req)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
-}
-func (c *Client) CreateDMCSessionById(contentID string) (*DMCSession, error) {
-	data, err := c.GetVideoData(contentID)
-	if err != nil {
-		return nil, err
-	}
-	return c.CreateDMCSessionByVideoData(data)
-}
-
-func (c *Client) CreateDMCSessionByVideoData(data *VideoData) (*DMCSession, error) {
-	err := c.prepareLicense(data)
-	if err != nil {
-		return nil, err
-	}
-
-	audio := data.GetAvailableAudio()
-	video := data.GetAvailableVideo()
-	if audio == nil || video == nil {
-		if data.IsNeedPayment() {
-			return nil, errors.New("need payment")
-		}
-		return nil, errors.New("source not found")
-	}
-
-	reqsession, err := data.GenDMCSessionReq(audio.ID, video.ID)
-	if err != nil {
-		return nil, err
-	}
-	sessionApiURL := data.GetSessionData()["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
-	return c.CreateDMCSession(reqsession, sessionApiURL)
-}
-
-func (c *Client) CreateSmileSessionByVideoData(data *VideoData) (*SmileSession, error) {
-	return &SmileSession{VideoData: data}, nil
-}
-
-func (c *Client) DownloadFromSmile(ctx context.Context, data *VideoData, w io.Writer) error {
-	if !data.IsSmile() {
-		return errors.New("SMILE is not available")
-	}
-
-	if !strings.HasPrefix(data.Video.Smile.URL, "http") {
-		return fmt.Errorf("unsported protocol : %v", data.Video.Smile.URL)
-	}
-	return NewHTTPDownloader(c.HttpClient).Download(ctx, data.Video.Smile.URL, w)
 }

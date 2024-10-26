@@ -32,16 +32,16 @@ func (s *DomandSession) SubStreams() [][]string {
 	return nil
 }
 
-func (s *DomandSession) Download(ctx context.Context, client *http.Client, w io.Writer, stream string) error {
+func (s *DomandSession) Download(ctx context.Context, client *http.Client, w io.Writer, optionalStreamID string) error {
 	if s.Data.ContentUrl == "" {
 		return errors.New("domand is not available")
 	}
 	hls := NewHLSDownloader(client)
-	hls.TargetGroupID = stream
+	hls.TargetGroupID = optionalStreamID
 	return hls.Download(ctx, s.Data.ContentUrl, w)
 }
 
-func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession, error) {
+func CreateDomandSessionByVideoData(client *http.Client, data *VideoData) (*DomandSession, error) {
 	if !data.IsDomand() || data.Client.WatchTrackId == "" {
 		return nil, errors.New("domand is not available")
 	}
@@ -77,7 +77,7 @@ func (c *Client) CreateDomandSessionByVideoData(data *VideoData) (*DomandSession
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-access-right-key", data.Media.Domand.AccessRightKey)
 
-	res, err := doRequest(c.HttpClient, req)
+	res, err := doRequest(client, req)
 	if err != nil {
 		return nil, err
 	}

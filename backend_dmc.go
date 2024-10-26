@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,7 +66,30 @@ func (s *DMCSession) FileExtension() string {
 	return "mp4"
 }
 
-func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (*DMCSession, error) {
+func CreateDMCSessionByVideoData(client *http.Client, data *VideoData) (*DMCSession, error) {
+	err := prepareLicense(client, data)
+	if err != nil {
+		return nil, err
+	}
+
+	audio := data.GetAvailableAudio()
+	video := data.GetAvailableVideo()
+	if audio == nil || video == nil {
+		if data.IsNeedPayment() {
+			return nil, errors.New("need payment")
+		}
+		return nil, errors.New("source not found")
+	}
+
+	reqsession, err := data.GenDMCSessionReq(audio.ID, video.ID)
+	if err != nil {
+		return nil, err
+	}
+	sessionApiURL := data.GetSessionData()["urls"].([]interface{})[0].(map[string]interface{})["url"].(string)
+	return CreateDMCSession(client, reqsession, sessionApiURL)
+}
+
+func CreateDMCSession(client *http.Client, reqsession jsonObject, sessionApiURL string) (*DMCSession, error) {
 	sessionBytes, err := json.Marshal(reqsession)
 	if err != nil {
 		return nil, err
@@ -76,7 +100,7 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := doRequest(c.HttpClient, req)
+	res, err := doRequest(client, req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +136,7 @@ func (c *Client) CreateDMCSession(reqsession jsonObject, sessionApiURL string) (
 	return session, nil
 }
 
-func (c *Client) heartbeat(session *DMCSession) error {
+func heartbeat(client *http.Client, session *DMCSession) error {
 	sessionStr, err := json.Marshal(session.fullData)
 	if err != nil {
 		return err
@@ -123,7 +147,7 @@ func (c *Client) heartbeat(session *DMCSession) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := doRequest(c.HttpClient, req)
+	res, err := doRequest(client, req)
 	if err != nil {
 		return err
 	}
@@ -147,7 +171,7 @@ func (c *Client) heartbeat(session *DMCSession) error {
 	return nil
 }
 
-func (c *Client) startHeartbeat(ctx context.Context, session *DMCSession, errorLimit int) {
+func startHeartbeat(ctx context.Context, client *http.Client, session *DMCSession, errorLimit int) {
 	go func() {
 		errorCount := 0
 		interval := time.Duration(session.KeepMethod.Heartbeat.LifetimeMs) / 2 * time.Millisecond
@@ -156,7 +180,7 @@ func (c *Client) startHeartbeat(ctx context.Context, session *DMCSession, errorL
 			case <-ctx.Done():
 				return
 			case <-time.After(interval):
-				err := c.heartbeat(session)
+				err := heartbeat(client, session)
 				if err != nil {
 					Logger.Printf("hearbeat error :%v", err)
 					errorCount++
@@ -169,7 +193,7 @@ func (c *Client) startHeartbeat(ctx context.Context, session *DMCSession, errorL
 	}()
 }
 
-func (c *Client) DownloadFromDMC(ctx context.Context, session *DMCSession, w io.Writer) error {
+func (session *DMCSession) Download(ctx context.Context, client *http.Client, w io.Writer, optionalStreamID string) error {
 	if session.Protocol.Name != "http" {
 		return fmt.Errorf("unsupported protocol : %v", session.Protocol.Name)
 	}
@@ -177,13 +201,13 @@ func (c *Client) DownloadFromDMC(ctx context.Context, session *DMCSession, w io.
 	if session.KeepMethod.Heartbeat != nil {
 		hbCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		c.startHeartbeat(hbCtx, session, 2)
+		startHeartbeat(hbCtx, client, session, 2)
 	}
 
 	if session.IsHLS() {
-		return NewHLSDownloader(c.HttpClient).Download(ctx, session.ContentURI, w)
+		return NewHLSDownloader(client).Download(ctx, session.ContentURI, w)
 	} else if session.IsHTTP() {
-		return NewHTTPDownloader(c.HttpClient).Download(ctx, session.ContentURI, w)
+		return NewHTTPDownloader(client).Download(ctx, session.ContentURI, w)
 	} else {
 		return fmt.Errorf("unsupported protocol url: %v", session.ContentURI)
 	}

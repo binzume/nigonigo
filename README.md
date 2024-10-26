@@ -11,6 +11,7 @@ Experimental implementation of [niconico](https://www.nicovideo.jp/) API client 
 - Search
 - MyList
 - Ranking
+- Comments (read only)
 - Download video
 
 ## Usage
