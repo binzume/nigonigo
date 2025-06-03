@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -171,7 +172,7 @@ func (s *SourceStream2) SourceStream() *SourceStream {
 type SourceStream3 struct {
 	ID           string `json:"id"`
 	Available    bool   `json:"isAvailable"`
-	Label        string `json:"label"`
+	Label        any    `json:"label"`
 	Bitrate      int    `json:"bitRate"`
 	QualityLevel int    `json:"qualityLevel"`
 
@@ -311,6 +312,7 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 			var data VideoResponse
 			err = json.Unmarshal([]byte(jsonString), &data)
 			if err != nil {
+				log.Println(jsonString)
 				return nil, err
 			}
 			if data.Data.Res == nil {
