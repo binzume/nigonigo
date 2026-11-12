@@ -80,6 +80,7 @@ type VideoData struct {
 			IsSlowLine       bool     `json:"isSlowLine"`
 		} `json:"smileInfo"`
 	} `json:"video"`
+	WatchV4 *WatchV4VideoData `json:"$watchV4"`
 	// temp1.media.delivery.movie.audios
 	Media struct {
 		Delivery struct {
@@ -95,13 +96,7 @@ type VideoData struct {
 		} `json:"deliveryLegacy"`
 
 		// v2024
-		Domand *struct {
-			Audios []*SourceStream3 `json:"audios"`
-			Videos []*SourceStream3 `json:"videos"`
-
-			IsStoryboardAvailable bool   `json:"isStoryboardAvailable"`
-			AccessRightKey        string `json:"accessRightKey"`
-		} `json:"domand"`
+		Domand *DomandVideoData `json:"domand"`
 	} `json:"media"`
 	Thread  map[string]interface{} `json:"thread"`
 	Owner   OwnerInfo              `json:"owner"`
@@ -265,6 +260,9 @@ func (v *VideoData) GetAvailableSource(sources []*SourceStream) *SourceStream {
 }
 
 func (v *VideoData) GetPreferredAudio() *SourceStream3 {
+	if v.WatchV4 != nil {
+		return v.GetAvailableSource3(v.WatchV4.Data.Media.Contents.Audios)
+	}
 	if v.Media.Domand == nil {
 		return nil
 	}
@@ -272,6 +270,9 @@ func (v *VideoData) GetPreferredAudio() *SourceStream3 {
 }
 
 func (v *VideoData) GetPreferredVideo() *SourceStream3 {
+	if v.WatchV4 != nil {
+		return v.GetAvailableSource3(v.WatchV4.Data.Media.Contents.Videos)
+	}
 	if v.Media.Domand == nil {
 		return nil
 	}
@@ -295,6 +296,13 @@ type VideoSession interface {
 	Download(ctx context.Context, client *http.Client, w io.Writer, optionalStreamID string) error
 }
 
+func logJson(js string) {
+	var dd map[string]any
+	json.Unmarshal([]byte(js), &dd)
+	jj, err := json.MarshalIndent(dd, "", " ")
+	log.Println(string(jj), err)
+}
+
 func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 	res, err := getContent(c.HttpClient, watchUrl+contentId, nil)
 	if err != nil {
@@ -309,12 +317,13 @@ func (c *Client) GetVideoData(contentId string) (*VideoData, error) {
 		match = regexp.MustCompile(`<meta name="server-response" content="([^"]+)"`).FindStringSubmatch(body)
 		if match != nil {
 			jsonString := html.UnescapeString(match[1])
+			// logJson(jsonString)
 			var data VideoResponse
 			err = json.Unmarshal([]byte(jsonString), &data)
 			if err != nil {
-				log.Println(jsonString)
 				return nil, err
 			}
+
 			if data.Data.Res == nil {
 				return nil, errors.New("invalid server-response")
 			}
@@ -351,7 +360,9 @@ func (c *Client) CreateVideoSession(contentID string) (VideoSession, error) {
 }
 
 func (c *Client) CreateVideoSessionFromVideoData(data *VideoData) (VideoSession, error) {
-	if data.IsDMC() {
+	if data.WatchV4 != nil {
+		return CreateWatchV4SessionByVideoData(c.HttpClient, data)
+	} else if data.IsDMC() {
 		return CreateDMCSessionByVideoData(c.HttpClient, data)
 	} else if data.IsSmile() {
 		return CreateSmileSessionByVideoData(c.HttpClient, data)

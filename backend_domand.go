@@ -9,6 +9,14 @@ import (
 	"net/http"
 )
 
+type DomandVideoData struct {
+	Audios []*SourceStream3 `json:"audios"`
+	Videos []*SourceStream3 `json:"videos"`
+
+	IsStoryboardAvailable bool   `json:"isStoryboardAvailable"`
+	AccessRightKey        string `json:"accessRightKey"`
+}
+
 type DomandAccessData struct {
 	ContentUrl string `json:"contentUrl"`
 	CreateTime string `json:"createTime"`
